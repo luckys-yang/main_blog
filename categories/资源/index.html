@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="John Doe" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  
+  
+  <title>
+    
+      Category 
+      
+       : 资源
+      |
+    
+     烊烊
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/css/my_woff2.css" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+   
+
+  
+
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+
+  <!-- phone live -->
+<script>
+document.querySelectorAll('.live-photo .icon img').forEach(img => {
+    img.addEventListener('click', function (e) {
+        // 阻止浏览器默认的图片预览行为
+        e.preventDefault();
+
+        // 这里可以保留你自己的点击逻辑，比如播放视频
+        console.log('触发自定义业务逻辑');
+    });
+});
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('.live-photo').forEach(livePhoto => {
+		const container = livePhoto.querySelector('.container');
+		const icon = livePhoto.querySelector('.icon, .icon_1'); // 这里因为添加了icon_1样式所以这里也需要增加一个
+		const video = container.querySelector('video');
+		const image = container.querySelector('img');
+		const warning = livePhoto.querySelector('.warning');
+		// TODO 优化：等图片可用的时候再把视频显示出来，测试出现
+		// 过视频比图片先加载完成，导致 flicker。
+		// 尽可能修复 Safari 无法播放的问题
+		// if (/WebKit/.test(navigator.userAgent)) {
+		// NOTE: 为了避免预加载，不应该提前 load。
+		// video.load();
+		// }
+		// fix: 鼠标进入 → 开始加载 → 鼠标离开（加载成功前） → 加载失败。
+		let within = false;
+        // 停留时间控制变量
+        let playTimer = null;
+        let isPlaying = false;
+
+		const start = async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+			within = true;
+            isPlaying = true;   
+			// 添加旋转类
+			icon.classList.add('rotate');
+			try {
+				video.currentTime = 0;
+				await video.play();
+				livePhoto.classList.add('zoom');
+			}
+			catch(e) {
+				console.log(e);
+				if (within && e instanceof DOMException) {
+					if (['NotAllowedError','AbortError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面1';
+					} else if (['NotSupportedError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面2';
+					} else {
+						warning.innerText = `其它错误：${e}`;
+					}
+					warning.classList.add('show');
+				}
+			}
+		};
+		const leave = (e) => {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            
+            // 清理状态
+            icon.classList.remove('rotate');
+            livePhoto.classList.remove('zoom');
+            warning.classList.remove('show');
+            within = false;
+            isPlaying = false;
+            video.pause();
+		};
+        // 鼠标进入 - 开始计时
+        const handleMouseEnter = (e) => {
+            within = true;
+            // 清除之前的定时器
+            if (playTimer) {
+                clearTimeout(playTimer);
+            }
+            
+            // 400ms后自动播放
+            playTimer = setTimeout(() => {
+                if (within) { // 确保还在区域内
+                    start(e);
+                }
+                playTimer = null;
+            }, 400);
+        };
+        // 鼠标离开 - 检查停留时间
+        const handleMouseLeave = (e) => {
+            leave(e);
+        };
+		icon.addEventListener('mouseenter',   handleMouseEnter);
+		icon.addEventListener('mouseleave',   handleMouseLeave);
+		image.addEventListener('touchstart',  start);
+		image.addEventListener('touchend',    leave);
+		image.addEventListener('touchcancel', leave);
+		video.addEventListener('ended', () => {
+			livePhoto.classList.remove('zoom');
+            icon.classList.remove('rotate');
+            isPlaying = false;
+		});
+	});
+});
+</script>
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img no-lazy src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/avatar.webp" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">烊烊のBlog</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">主页</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">归档</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/chat/">
+          <a href="/chat/">闲谈</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于me</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/activeNav.js"></script>
+    
+
+
+
+
+      <div class="flex-container">
+        <!-- 标签详情页，展示某个标签下的文章列表，url形式：https://yoursite/tags/某个标签/ -->
+
+<div class="container category-details">
+  <div class="content-title">
+    <h2>
+      <span>资源</span>
+    </h2>
+  </div>
+  
+    <div class="post-list">
+      <div class="post-item" title="常用网站记录">
+        <span class="time-m-d">2025-08-08</span>
+        <a href="/2025/08/08/%E5%B8%B8%E7%94%A8%E7%BD%91%E7%AB%99%E8%AE%B0%E5%BD%95/">
+          <span>常用网站记录</span>
+        </a>
+      </div>
+    </div>
+  
+  <nav class="post-navigation">
+    
+    <span class="page-num">1 / 1</span>
+    
+  </nav>
+</div>
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+        <!-- 添加安全检查：确保 social 存在且是数组 否则为空报错 -->
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        博客苟活4天了
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2022026282号-1</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        Theme by Oranges | Powered by Hexo
+        
+    </div>
+  
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/backtotop.js"></script>
+    
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/colorscheme.js"></script>
+    
+
+
+
+
+        
+
+      </div>
+    </div>
+  
+        <style>
+            [bg-lazy] {
+                background-image: none !important;
+                background-color: #eee !important;
+            }
+        </style>
+        <script>
+            window.imageLazyLoadSetting = {
+                isSPA: false,
+                preloadRatio: 1,
+                processImages: null,
+            };
+        </script><script>window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z\d\-\.\+]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(t.test(e.href)||r.test(e.href))&&(e.href=a.dataset.original)})});</script><script>(r=>{r.imageLazyLoadSetting.processImages=t;var a=r.imageLazyLoadSetting.isSPA,o=r.imageLazyLoadSetting.preloadRatio||1,d=i();function i(){var t=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")),e=Array.prototype.slice.call(document.querySelectorAll("[bg-lazy]"));return t.concat(e)}function t(t){(a||t)&&(d=i());for(var e,n=0;n<d.length;n++)0<=(e=(e=d[n]).getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(r.innerHeight*o||document.documentElement.clientHeight*o)&&(()=>{var t,e,a,o,i=d[n];e=function(){d=d.filter(function(t){return i!==t}),r.imageLazyLoadSetting.onImageLoaded&&r.imageLazyLoadSetting.onImageLoaded(i)},(t=i).dataset.loaded||(t.hasAttribute("bg-lazy")?(t.removeAttribute("bg-lazy"),e&&e()):(a=new Image,o=t.getAttribute("data-original"),a.onload=function(){t.src=o,t.removeAttribute("data-original"),t.setAttribute("data-loaded",!0),e&&e()},a.onerror=function(){t.removeAttribute("data-original"),t.setAttribute("data-loaded",!1),t.src=o},t.src!==o&&(a.src=o)))})()}function e(){clearTimeout(t.tId),t.tId=setTimeout(t,500)}t(),document.addEventListener("scroll",e),r.addEventListener("resize",e),r.addEventListener("orientationchange",e)})(this);</script></body>
+</html>
