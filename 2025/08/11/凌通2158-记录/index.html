@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="烊烊" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="嵌入式 学习" />
+  
+  
+  
+  <title>
+    
+      凌通2158-记录 
+      
+      
+      |
+    
+     烊烊
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/css/my_woff2.css" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+   
+
+  
+
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+
+
+  <!-- phone live -->
+<script>
+// 当前正在播放的 live photo 相关信息
+let currentPlaying = null;
+document.querySelectorAll('.live-photo .icon img').forEach(img => {
+    img.addEventListener('click', function (e) {
+        // 阻止浏览器默认的图片预览行为
+        e.preventDefault();
+        // 这里可以保留你自己的点击逻辑，比如播放视频
+        console.log('触发自定义业务逻辑');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('.live-photo').forEach(livePhoto => {
+		const container = livePhoto.querySelector('.container');
+		const icon = livePhoto.querySelector('.icon, .icon_1'); // 这里因为添加了icon_1样式所以这里也需要增加一个
+		const video = container.querySelector('video');
+		const image = container.querySelector('img');
+		const warning = livePhoto.querySelector('.warning');
+		// TODO 优化：等图片可用的时候再把视频显示出来，测试出现
+		// 过视频比图片先加载完成，导致 flicker。
+		// 尽可能修复 Safari 无法播放的问题
+		// if (/WebKit/.test(navigator.userAgent)) {
+		// NOTE: 为了避免预加载，不应该提前 load。
+		// video.load();
+		// }
+		// fix: 鼠标进入 → 开始加载 → 鼠标离开（加载成功前） → 加载失败。
+		let within = false;
+        // 停留时间控制变量
+        let playTimer = null;
+        let isPlaying = false;
+        let touchStartTime = 0;
+
+        // 停止上一张的播放 清除状态
+        const stopCurrentPlaying = () => {
+            if (currentPlaying && currentPlaying.video) {
+                currentPlaying.video.pause();
+                // currentPlaying.icon.classList.remove('rotate');
+                currentPlaying.livePhoto.classList.remove('zoom');
+                currentPlaying.warning.classList.remove('show');
+                currentPlaying.isPlaying = false;
+                currentPlaying.within = false;
+            }
+        };
+
+		const start = async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+
+            // ⛔ 先停止之前正在播放的 live photo
+            if (!(currentPlaying && currentPlaying.video === video)) {
+                stopCurrentPlaying();
+            }
+
+			within = true;
+            isPlaying = true;   
+			// 添加旋转类
+			// icon.classList.add('rotate');
+			try {
+				video.currentTime = 0;
+				await video.play();
+				livePhoto.classList.add('zoom');
+                // 更新当前播放变量
+                currentPlaying = { livePhoto, video, icon, warning, isPlaying, within };
+			}
+			catch(e) {
+				console.log(e);
+				if (within && e instanceof DOMException) {
+					if (['NotAllowedError','AbortError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面1';
+					} else if (['NotSupportedError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面2';
+					} else {
+						warning.innerText = `其它错误：${e}`;
+					}
+					warning.classList.add('show');
+				}
+			}
+		};
+		const leave = (e) => {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            
+            // 清理状态
+            // icon.classList.remove('rotate');
+            livePhoto.classList.remove('zoom');
+            warning.classList.remove('show');
+            within = false;
+            isPlaying = false;
+            video.pause();
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		};
+        // 鼠标进入 - 开始计时
+        const handleMouseEnter = (e) => {
+            within = true;
+            // 清除之前的定时器
+            if (playTimer) {
+                clearTimeout(playTimer);
+            }
+            
+            // 400ms后自动播放
+            playTimer = setTimeout(() => {
+                if (within) { // 确保还在区域内
+                    start(e);
+                }
+                playTimer = null;
+            }, 400);
+        };
+        // 鼠标离开 - 检查停留时间
+        const handleMouseLeave = (e) => {
+            leave(e);
+        };
+		icon.addEventListener('mouseenter',   handleMouseEnter);
+		icon.addEventListener('mouseleave',   handleMouseLeave);
+		// image.addEventListener('touchstart',  start);
+		// image.addEventListener('touchend',    leave);
+        // 👇 修改手机端触摸触发方式
+        image.addEventListener('touchstart', function (e) {
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        image.addEventListener('touchend', function (e) {
+            if (Date.now() - touchStartTime < 200) { // 点击播放
+                start(e);
+            }
+            // leave(e);
+        });
+		image.addEventListener('touchcancel', leave);
+		video.addEventListener('ended', () => {
+			livePhoto.classList.remove('zoom');
+            // icon.classList.remove('rotate');
+            isPlaying = false;
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		});
+	});
+});
+</script>
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img no-lazy src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/avatar.webp" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">烊烊のBlog</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">主页</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">归档</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/chat/">
+          <a href="/chat/">闲谈</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于me</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/activeNav.js"></script>
+    
+
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mathjax/3.2.0/es5/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">凌通2158-记录</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2025-08-23 15:06:53
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/work%E5%86%85%E5%AE%B9/" title="work内容">
+                    <b>#</b> work内容
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <h1 id="屏幕底部出现横线条-跟着sensor走"><a href="#屏幕底部出现横线条-跟着sensor走" class="headerlink" title="屏幕底部出现横线条(跟着sensor走)"></a>屏幕底部出现横线条(跟着sensor走)</h1><blockquote>
+<p>出现案子：ZB16</p>
+</blockquote>
+<p>解决方法：</p>
+<p>在sensor驱动程序里 <strong>ov5695_cdsp_mipi_stream_on</strong> 函数里增加下面代码</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">if</span> 1   <span class="comment">// soled Line issue</span></span></span><br><span class="line"><span class="built_in">drv_l1_CdspSetBinmode</span>(<span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0x04000000</span>);</span><br><span class="line">R_SYSTEM_CTRL0 &amp;= ~(<span class="number">1</span> &lt;&lt; <span class="number">7</span>);</span><br><span class="line"><span class="meta">#<span class="keyword">endif</span></span></span><br></pre></td></tr></table></figure>
+
+
+
+<h1 id="效果"><a href="#效果" class="headerlink" title="效果"></a>效果</h1><h2 id="AWB偏绿"><a href="#AWB偏绿" class="headerlink" title="AWB偏绿"></a>AWB偏绿</h2><blockquote>
+<p><strong>gplib_aeawb.a</strong> 跟  <strong>gp_aeawb.h</strong> 的问题 需要换回去默认的 0207 版本</p>
+</blockquote>
+<h1 id="PCCAM"><a href="#PCCAM" class="headerlink" title="PCCAM"></a>PCCAM</h1><blockquote>
+<p>电脑自带的相机软件录制视频出来都是1秒 换amcap 这个软件就正常</p>
+</blockquote>
+<h1 id="WiFi相关"><a href="#WiFi相关" class="headerlink" title="WiFi相关"></a>WiFi相关</h1><h2 id="app里点击开始录像后大概流程"><a href="#app里点击开始录像后大概流程" class="headerlink" title="app里点击开始录像后大概流程"></a>app里点击开始录像后大概流程</h2><ul>
+<li>先执行 <strong>ap_storage_service_file_open_handle</strong> 创建文件 然后创建完成后发送 <code>MSG_STORAGE_SERVICE_VID_REPLY</code> 消息到录像任务，执行 <strong>ap_video_record_reply_action</strong> 函数</li>
+<li><strong>ap_video_record_reply_action</strong> 函数里面主要执行了 <strong>avi_enc_start</strong> 函数</li>
+<li><strong>avi_enc_start</strong> 函数里面发送了 <code>MSG_AVI_START_ENCODE</code> 消息 到 <strong>task_video_encode_entry</strong> 任务 </li>
+<li><code>MSG_AVI_START_ENCODE</code> 消息主要执行 <strong>avi_encode_start</strong> 函数</li>
+</ul>
+<h2 id="wifi时用1080FHD录制视频自动下一段会卡死"><a href="#wifi时用1080FHD录制视频自动下一段会卡死" class="headerlink" title="wifi时用1080FHD录制视频自动下一段会卡死"></a>wifi时用1080FHD录制视频自动下一段会卡死</h2><p>解决方法：没办法内存不够 只能就是连接wifi后录制1080P不连接时录制1080FHD</p>
+<blockquote>
+<p>使用1080FHD录制视频正常或者循环录像 录制完一段后自动开始下一段时会报错，导致死机(手动提前10s左右结束再去录制的话就正常)，Log部分如下：</p>
+<figure class="highlight verilog"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"> Used <span class="number">0</span>x39A800 size=<span class="number">3078464</span></span><br><span class="line"> Used <span class="number">0</span>x68A140 size=<span class="number">24768</span></span><br><span class="line"> Used <span class="number">0</span>x690200 size=<span class="number">5312</span></span><br><span class="line"> Used <span class="number">0</span>x6916C0 size=<span class="number">12352</span></span><br><span class="line"> Used <span class="number">0</span>x694700 size=<span class="number">4480</span></span><br><span class="line"> Used <span class="number">0</span>x695880 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x6978C0 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x699900 size=<span class="number">16448</span></span><br><span class="line"> Used <span class="number">0</span>x69D940 size=<span class="number">12480</span></span><br><span class="line"> Used <span class="number">0</span>x6A0A00 size.=<span class="number">12416</span></span><br><span class="line"> Used <span class="number">0</span>x6A3A80 size=<span class="number">8192</span></span><br><span class="line"> ____ <span class="number">0</span>x6A5A40 size=<span class="number">6976</span></span><br><span class="line"> Used <span class="number">0</span>x6A75C0 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x6AF600 size=<span class="number">31744</span></span><br><span class="line"> Used <span class="number">0</span>x6B7200 size=<span class="number">9536</span></span><br><span class="line"> ____ <span class="number">0</span>x6B9700 size=<span class="number">3648</span></span><br><span class="line"> Used <span class="number">0</span>x6BA580 size=<span class="number">8384</span></span><br><span class="line"> Used <span class="number">0</span>x6BC640 size=<span class="number">160576</span></span><br><span class="line"> Used <span class="number">0</span>x6E3980 size=<span class="number">599104</span></span><br><span class="line"> Used <span class="number">0</span>x775DC0 size=<span class="number">614528</span></span><br><span class="line"> Used <span class="number">0</span>x80BE40 size=<span class="number">14080</span></span><br><span class="line"> Used <span class="number">0</span>x80F540 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x811580 size=<span class="number">135232</span></span><br><span class="line"> Used <span class="number">0</span>x8325C0 size=<span class="number">196672</span></span><br><span class="line"> Used <span class="number">0</span>x862600 size=<span class="number">98368</span></span><br><span class="line"> Used <span class="number">0</span>x87A640 size=<span class="number">98368</span></span><br><span class="line"> Used <span class="number">0</span>x892680 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x89A6C0 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8A2700 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8AA740 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8B2780 size=<span class="number">1843264</span></span><br><span class="line"> Used <span class="number">0</span>xA747C0 size=<span class="number">2119808</span></span><br><span class="line"> Used <span class="number">0</span>xC7A040 size=<span class="number">1059968</span></span><br><span class="line"> Used <span class="number">0</span>xD7CCC0 size=<span class="number">2359104</span></span><br><span class="line"> ____ <span class="number">0</span>xFBCBC0 size=<span class="number">275392</span></span><br><span class="line"><span class="variable">.A</span>...<span class="variable">.1s</span>...<span class="variable">.A</span>..[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br><span class="line">.<span class="variable">.1s</span>..<span class="variable">.A</span>....<span class="variable">.1s</span>..<span class="variable">.A</span>.[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br><span class="line">...<span class="variable">.1s</span>..<span class="variable">.A</span>....<span class="variable">.1s</span>.<span class="variable">.A</span>..[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br><span class="line">...<span class="variable">.1s</span>.<span class="variable">.A</span>.....<span class="variable">.1sA</span>....[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br><span class="line">FileName = MOVI0006<span class="variable">.mov</span></span><br><span class="line">=&gt;video_encode_record_restart!!!</span><br><span class="line">w=<span class="number">0</span>x300<span class="variable">.40</span>,r=<span class="number">0</span>x24d00</span><br><span class="line">Fail vidMP4PackerInit, gpMP4IdxBufStart malloc failnextMovHandle: fbcc00,<span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 省略无用部分</span></span><br><span class="line"></span><br><span class="line">...<span class="variable">.A</span>.<span class="variable">.1s</span>....<span class="variable">.close</span> write </span><br><span class="line">@@currentMovHandle = <span class="number">0</span>xfbcc00,<span class="number">1</span></span><br><span class="line">.@@pkt_video<span class="variable">.frameType</span> = <span class="number">0</span></span><br><span class="line">w=<span class="number">0</span>x0,r=<span class="number">0</span>xc5f00</span><br><span class="line">video packer write fail b</span><br><span class="line">Await <span class="number">1</span>s to record stop!!</span><br></pre></td></tr></table></figure>
+
+<p>1080P录制时是正常的，Log部分如下：</p>
+<figure class="highlight verilog"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"> Used <span class="number">0</span>x39A800 size=<span class="number">3078464</span></span><br><span class="line"> Used <span class="number">0</span>x68A140 size=<span class="number">24768</span></span><br><span class="line"> Used <span class="number">0</span>x690200 size=<span class="number">5312</span></span><br><span class="line"> Used <span class="number">0</span>x6916C0 size=<span class="number">12352</span></span><br><span class="line"> Used <span class="number">0</span>x694700 size=<span class="number">4480</span></span><br><span class="line"> Used <span class="number">0</span>x695880 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x6978C0 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x699900 size=<span class="number">16448</span></span><br><span class="line"> Used <span class="number">0</span>x69D940 size=<span class="number">12480</span></span><br><span class="line"> Used <span class="number">0</span>x6A0A00 size=<span class="number">12416</span></span><br><span class="line"> Used <span class="number">0</span>x6A3A80 size=<span class="number">8192</span></span><br><span class="line"> ____ <span class="number">0</span>x6A5A40. size=<span class="number">6976</span></span><br><span class="line"> Used <span class="number">0</span>x6A75C0 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x6AF600 size=<span class="number">31744</span></span><br><span class="line"> Used <span class="number">0</span>x6B7200 size=<span class="number">9536</span></span><br><span class="line"> ____ <span class="number">0</span>x6B9700 size=<span class="number">3648</span></span><br><span class="line"> Used <span class="number">0</span>x6BA580 size=<span class="number">8384</span></span><br><span class="line"> Used <span class="number">0</span>x6BC640 size=<span class="number">160576</span></span><br><span class="line"> Used <span class="number">0</span>x6E3980 size=<span class="number">599104</span></span><br><span class="line"> Used <span class="number">0</span>x775DC0 size=<span class="number">614528</span></span><br><span class="line"> Used <span class="number">0</span>x80BE40 size=<span class="number">14080</span></span><br><span class="line"> Used <span class="number">0</span>x80F540 size=<span class="number">8256</span></span><br><span class="line"> Used <span class="number">0</span>x811580 size=<span class="number">135232</span></span><br><span class="line"> Used <span class="number">0</span>x8325C0 size=<span class="number">196672</span></span><br><span class="line"> Used <span class="number">0</span>x862600 size=<span class="number">98368</span></span><br><span class="line"> Used <span class="number">0</span>x87A640 size=<span class="number">98368</span></span><br><span class="line"> Used <span class="number">0</span>x892680 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x89A6C0 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8A2700 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8AA740 size=<span class="number">32832</span></span><br><span class="line"> Used <span class="number">0</span>x8B2780 size=<span class="number">1382464</span></span><br><span class="line"> Used <span class="number">0</span>xA03FC0 size=<span class="number">1589888</span></span><br><span class="line"> Used <span class="number">0</span>xB88240 size=<span class="number">795008</span></span><br><span class="line"> Used <span class="number">0</span>xC4A3C0 size=<span class="number">2359104</span></span><br><span class="line"> ____ <span class="number">0</span>xE8A2C0 size=<span class="number">1531072</span></span><br><span class="line">.....[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br><span class="line">FileName = MOVI0007<span class="variable">.mov</span></span><br><span class="line">=&gt;video_encode_record_restart!!!</span><br><span class="line">nextMovHandle: e8a300,<span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 省略无用部分</span></span><br><span class="line"></span><br><span class="line">.<span class="variable">.close</span> write </span><br><span class="line">@@currentMovHandle = <span class="number">0</span>xe8a300,<span class="number">1</span></span><br><span class="line">@@pkt_video<span class="variable">.frameType</span> = <span class="number">0</span></span><br><span class="line">.<span class="variable">.1s</span>[WIFI]GP_SOCK_Cmd: <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>分析：</p>
+<p>最后 fail 时 <code>xFreeBytesRemaining</code> 很小（<code>w=0x30040, r=0x24d00</code> → 申请 ~196KB，剩余 ~150KB，不够），说明确实是堆不足</p>
+<p>然后再仔细打印主要出现内存差距大 不一样的地方是：</p>
+<p>最下面3处的 <code>w=</code> 部分</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250820111808350.png" alt="image-20250820111808350"></p>
+<p>第一次的是这里：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250820132617928.png" alt="image-20250820132617928"></p>
+<p>其中后面两次的内存是在这里申请的 底层的：</p>
+<p>第二次的看着像分辨率尺寸的大小(1920x1080&#x3D;2,073,600 跟0x205880 差不多的)</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250820115221953.png" alt="image-20250820115221953"></p>
+</blockquote>
+<h1 id="Sensor"><a href="#Sensor" class="headerlink" title="Sensor"></a>Sensor</h1><blockquote>
+<p>参考：</p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_35247586/category_9782868.html">https://blog.csdn.net/qq_35247586/category_9782868.html</a></p>
+</blockquote>
+<h2 id="理论"><a href="#理论" class="headerlink" title="理论"></a>理论</h2><p><code>ISP</code>:  <strong>Image Signal Processor</strong>（图像信号处理器）它负责把 <strong>Sensor 输出的原始数据（RAW Bayer）</strong> 转换成我们看到的彩色图像（YUV &#x2F; RGB）</p>
+<p><code>IQ</code>: <strong>Image Quality（图像质量）</strong> 平时我们做IQ矫正意思就是指 <strong>在镜头畸变、暗角等光学缺陷校正的基础上，去做整套画质优化的过程</strong>，一般做的内容包括 <strong>LSC</strong>，<strong>AWB</strong>，<strong>CCM</strong></p>
+<p><code>LSC</code>：<strong>Lens Shading Correction（镜头阴影校正）</strong>， 只校正Y Shading，工作原理：根据标准光源的raw图生成相应的LSC table，以补偿该光源下的中心到四周的亮度阴影和色彩偏差</p>
+<p><code>AE Target</code>： ISP 希望 sensor 输出的图片达到的亮度（<strong>目标亮度</strong>：通常根据环境亮度BV设置对应的值）</p>
+<ul>
+<li><strong>自动曝光</strong> &#x3D; ISO（感光度） x 光圈 x 曝光时间，使得Sensor输出或者使得ISP在AE测光之前的图像输出达到一定的亮度</li>
+<li><strong>亮度</strong>：是指最终的成像效果，除了AE之外，还包含后面的gamma、Tone mapping、Multi frame HDR… 对图像输出的处理</li>
+</ul>
+<p>曝光高了的话它那个曝光增益会变大就会导致噪声也会增加 也就是噪点，就会产生细节地方模糊 尤其在低光环境  然后如果过曝的话就亮部区域可能会失去细节 全白这样子</p>
+<p><code>AWB</code>: <strong>自动白平衡参数调校</strong>，主要处理色温引起的偏色问题，相机自己就需要识别当前场景的光源色温，根据色温类型查找对应的RGB平衡参数，这就是自动白平衡</p>
+<p>蓝色属于高色温</p>
+<p>中午的日光属于中等色温</p>
+<p>蜡烛的橙黄色属于低色温</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250814172250727.png" alt="image-20250814172250727"></p>
+<p>在不同光线下拍摄到的图像，会受到光源颜色的影响而发生变化，例如在晴朗的天空下拍摄到的图像可能偏蓝，而在烛光下拍摄到的物体颜色会偏红。因此，为了消除光源颜色对于图像传感器成像的影响，自动白平衡功能就是模拟了人类视觉系统的颜色恒常性特点来消除光源颜色对图像的影响的</p>
+<p><strong>Sensor原始图像中的白色如果不经AWB处理,在高色温(如阴天)下偏蓝,低色温下偏黄</strong></p>
+<ul>
+<li>对于白色物体，如果它周围的光线色温较低，那么它看起来就会偏微红色； 相反，如果它周围的光线色温较高，那么它看起来就会偏微蓝色。因此，ＡＷＢ的作用就是用来处理图像的色彩，使其看起来更加接近自然色</li>
+</ul>
+<p><strong>矫正时抓图时亮度不要过高</strong></p>
+<p><code>CCM</code>: <strong>还原色彩和饱和度</strong>，一般来说sensor 对光谱的响应，在 RGB 各分量上与人眼对光谱的响应通常是有偏差的，通常通过一个色彩校正矩阵CCM（Color Correction Matrix）校正光谱响应的交叉效应和响应强度，使前端捕获的图片与人眼视觉在色彩上保持一致</p>
+<ul>
+<li><strong>色彩还原</strong>：通常通过一个色彩校正矩阵校正光谱响应的交叉效应和响应强度，使ISP 处理后的图片与人眼视觉在色彩上保持一致</li>
+<li><strong>饱和度</strong>：也称色彩的纯度。取决于该色中含色成分和消色成分(灰色)的比例。含色成分越大，饱和度越大；消色成分越大，饱和度越小。</li>
+</ul>
+<blockquote>
+<p>RAW格式</p>
+<p><strong>RAW图像</strong>：就是CMOS或者CCD图像感应器将捕捉到的光源信号转化为数字信号的原始数据，表示Sensor接受到的各种光的强度，是Sensor输出的数据格式，RAW文件是一种记录了数码相机传感器的原始信息，同时记录了由相机拍摄所产生的一些元数据（Metadata，如ISO的设置、快门速度、光圈值、白平衡等）的文件</p>
+<p>Raw 在输出时具有一定的顺序格式，一般分为四种：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250814173301693.png" alt="image-20250814173301693"></p>
+</blockquote>
+<h2 id="调试"><a href="#调试" class="headerlink" title="调试"></a>调试</h2><p><code>亮度相关模块的调整</code>：主要是关注高亮及暗部的效果，增加可见性，但暗部拉亮后，噪声有时也会变明显</p>
+<p><code>画面通透感的要求</code>：主要就是提高对比度，使暗处更黑，亮处更亮来实现，但要注意平衡暗部的细节损失</p>
+<p><code>降噪和清晰度模块的调试</code>：降噪过大肯定是会对清晰度有损失，调试时是需要平衡的， 还有调试时要注意是raw域还是yuv域的处理（如果是raw域锐化或去噪过大，可能就会放大噪声或者损失清晰度，你后续yuv域的去噪或锐化就做不出来了），另外清晰度不够时，要思考是否是 demosaic 模块细节没做出来，或者raw域去噪太强，导致细节损失了，而不是一味的去调整锐化强度</p>
+<p><code>色彩相关的模块</code>：可以单独去调影响不大，但ccm调整的过饱和时，会出现色噪，一般整体的偏色都是白平衡偏了，图像中某个颜色不对可以调整ccm，一般情况下不建议手动去调整ccm，因为这肯定是会影响到其他颜色的。另外gamma的调整会对颜色有影响</p>
+<h2 id="新sensor进不去摄像头"><a href="#新sensor进不去摄像头" class="headerlink" title="新sensor进不去摄像头"></a>新sensor进不去摄像头</h2><p>sensorID是读到正常的，最终是这里导致 4改成 3即可：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> MIPI_CLK_DIV            3 <span class="comment">// 4</span></span></span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h1 id="小屏预览全屏显示"><a href="#小屏预览全屏显示" class="headerlink" title="小屏预览全屏显示"></a>小屏预览全屏显示</h1><p><strong>DISP_MODE_CROP</strong>: 等比例全屏裁掉</p>
+<p><strong>DISP_MODE_SCALE</strong>: 加黑边</p>
+<p>原理如下:</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/1754878054414.png" alt="1754878054414"></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> USE_PROPORTIONAL_DISPLAY_DUAL_PANEL       CUSTOM_ON   <span class="comment">// 小屏等比例显示</span></span></span><br></pre></td></tr></table></figure>
+
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/1754899911444.png" alt="1754899911444"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250813151340844.png" alt="image-20250813151340844"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250813151240137.png" alt="image-20250813151240137"></p>
+<blockquote>
+<p>调试过程中发现在大屏切到小屏时出现宕机，无异常Log，先进行问题范围缩短，从显示部分入手 进行一个屏蔽看看是否正常先不管显示画面</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/1754880016529.png" alt="1754880016529"></p>
+<p>发现没有宕机，则从 <strong>ap_display_buff_copy_and_draw_ptr</strong> 里面入手查找</p>
+<p>通过屏蔽大法最终是 <strong>ap_display_do_padding</strong> 函数导致的，小屏时直接不执行即可:</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/1754883387675.png" alt="1754883387675"></p>
+</blockquote>
+<blockquote>
+<p>由于一开始我 <strong>out_zoomW</strong> 没有进行 8byte 对齐 会导致 Zoom 时直接报 <strong>[TRACE]PS[1]:overflow</strong> 异常 然后宕机</p>
+</blockquote>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250813154813816.png" alt="image-20250813154813816"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250813154826318.png" alt="image-20250813154826318"></p>
+<h1 id="大头贴"><a href="#大头贴" class="headerlink" title="大头贴"></a>大头贴</h1><h2 id="RGB565颜色"><a href="#RGB565颜色" class="headerlink" title="RGB565颜色"></a>RGB565颜色</h2><p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250813202259173.png" alt="image-20250813202259173"></p>
+<ul>
+<li><strong>R</strong>：5 位，范围 0–31，每一级代表约 255&#x2F;31 ≈ <strong>8.225</strong> 的变化</li>
+<li><strong>G</strong>：6 位，范围 0–63，每一级代表约 255&#x2F;63 ≈ <strong>4.048</strong> 的变化</li>
+<li><strong>B</strong>：5 位，范围 0–31，每一级代表约 8.225 的变化</li>
+</ul>
+<blockquote>
+<p>RGB888 格式的颜色代码 <code>#RRGGBB</code></p>
+<p>RGB565 格式的颜色代码 <code>0xXXXX</code></p>
+</blockquote>
+<p>例子：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">#<span class="number">222222</span></span><br><span class="line">R8 = <span class="number">0x22</span> = <span class="number">34</span></span><br><span class="line">G8 = <span class="number">0x22</span> = <span class="number">34</span></span><br><span class="line">B8 = <span class="number">0x22</span> = <span class="number">34</span></span><br><span class="line">转换到 RGB565 -&gt;</span><br><span class="line">R5 = R8 * <span class="number">31</span> / <span class="number">255</span> ≈ <span class="number">4.13</span> → <span class="number">4</span></span><br><span class="line">G6 = G8 * <span class="number">63</span> / <span class="number">255</span> ≈ <span class="number">8.39</span> → <span class="number">8</span></span><br><span class="line">B5 = B8 * <span class="number">31</span> / <span class="number">255</span> ≈ <span class="number">4.13</span> → <span class="number">4</span></span><br><span class="line">重新封装成 <span class="number">16</span> 位 -&gt;</span><br><span class="line">(R5 &lt;&lt; <span class="number">11</span>) | (G6 &lt;&lt; <span class="number">5</span>) | (B5)</span><br><span class="line">= (<span class="number">4</span> &lt;&lt; <span class="number">11</span>) | (<span class="number">8</span> &lt;&lt; <span class="number">5</span>) | (<span class="number">4</span>)</span><br><span class="line">= <span class="number">0x2104</span></span><br></pre></td></tr></table></figure>
+
+<p>还有一个需要注意：</p>
+<p><strong>在 RGB565 模式下，多个相近的 24 位颜色会映射到同一个 16 位值</strong></p>
+<h2 id="大头贴的透明区域限制"><a href="#大头贴的透明区域限制" class="headerlink" title="大头贴的透明区域限制"></a>大头贴的透明区域限制</h2><p>预览部分是这里</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">	在ap_display.c调用此函数显示贴纸之前需要手动调用 capture_sticker_for_display_load 函数</span></span><br><span class="line"><span class="comment">    预览</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">capture_sticker_for_display_draw</span><span class="params">(INT16U *frame_buff)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// ....</span></span><br><span class="line">    <span class="keyword">if</span> (<span class="built_in">drv_l2_display_tft_fmt_get</span>() == DISP_FMT_GP420)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// ....</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span></span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// 执行这里</span></span><br><span class="line">        <span class="comment">// &#123;A&#125;</span></span><br><span class="line">        INT16U x, y;</span><br><span class="line">        INT16U r, g, b, black_r, black_g, black_b;</span><br><span class="line">        <span class="comment">// 这里改成0x0000即可只对纯黑进行透明</span></span><br><span class="line">        INT16U black_rgb565 = <span class="number">0x2104</span>;	<span class="comment">// 16位RGB565颜色</span></span><br><span class="line"></span><br><span class="line">        black_r = (black_rgb565 &gt;&gt; <span class="number">11</span>) &amp; <span class="number">0x1f</span>;	<span class="comment">// 5位红 4</span></span><br><span class="line">        black_g = (black_rgb565 &gt;&gt; <span class="number">5</span>) &amp; <span class="number">0x3f</span>;	<span class="comment">// 6位绿 8</span></span><br><span class="line">        black_b = black_rgb565 &amp; <span class="number">0x1f</span>;			<span class="comment">// 5位蓝 4</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (y = <span class="number">0</span>; y &lt; tft_h; y++) <span class="comment">// 0</span></span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">for</span> (x = <span class="number">0</span>; x &lt; tft_w; x++)</span><br><span class="line">            &#123;</span><br><span class="line">                r = (*(stickerDisplayDataBuff + y * tft_w + x) &gt;&gt; <span class="number">11</span>) &amp; <span class="number">0x1f</span>;</span><br><span class="line">                g = (*(stickerDisplayDataBuff + y * tft_w + x) &gt;&gt; <span class="number">5</span>) &amp; <span class="number">0x3f</span>;</span><br><span class="line">                b = *(stickerDisplayDataBuff + y * tft_w + x) &amp; <span class="number">0x1f</span>;</span><br><span class="line"></span><br><span class="line">                <span class="comment">// 判断需要透明的范围 </span></span><br><span class="line">                <span class="keyword">if</span> (r &lt;= black_r &amp;&amp; g &lt;= black_g &amp;&amp; b &lt;= black_b)</span><br><span class="line">                    <span class="keyword">continue</span>;</span><br><span class="line"></span><br><span class="line">                *(frame_buff + (y + <span class="number">60</span>) * tft_w + x) = *(stickerDisplayDataBuff + y * tft_w + x);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// ap_setting_icon_draw((INT16U *)frame_buff, (INT16U *)stickerDisplayDataBuff, &amp;icon, SETTING_ICON_NORMAL_DRAW);</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>贴到照片部分</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">    贴照片上</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">capture_sticker_for_cap_draw</span><span class="params">(INT32U target_buffer, INT8U draw_type, INT32U ImgWidth, INT32U ImgHeight)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (draw_type == YUYV_DRAW)</span><br><span class="line">    &#123;</span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> <span class="comment">// YUV420_DRAW</span></span><br><span class="line">    &#123;</span><br><span class="line">        INT32U x, y;</span><br><span class="line">        INT16U *icon_stream_data;</span><br><span class="line">        INT32U cnt;</span><br><span class="line">        INT16U Icon_W, buf_w;</span><br><span class="line"></span><br><span class="line">        cnt = <span class="number">1</span>;</span><br><span class="line">        Icon_W = ImgWidth &gt;&gt; <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        buf_w = ImgWidth &gt;&gt; <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (y = <span class="number">0</span>; y &lt; ImgHeight; y++)</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="keyword">for</span> (x = <span class="number">0</span>; x &lt; Icon_W; x++)</span><br><span class="line">            &#123;</span><br><span class="line">                icon_stream_data = <span class="built_in">ap_Get_GP420_Data_1</span>(y, x, stickerCapBuff, Icon_W, cnt);</span><br><span class="line">                <span class="comment">// &#123;A&#125;</span></span><br><span class="line">                <span class="comment">// 这里改成0x0000会导致拍出来的照片还是很多黑点</span></span><br><span class="line">                <span class="keyword">if</span> (*(icon_stream_data) &lt;= <span class="number">0x2000</span>)</span><br><span class="line">                &#123;</span><br><span class="line">                    <span class="keyword">continue</span>;</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                <span class="built_in">ap_Put_GP420_Data_1</span>(y, x, (INT16U *)target_buffer, buf_w, (INT16U *)(icon_stream_data), Icon_W);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="comment">// Odd</span></span><br><span class="line">            <span class="keyword">if</span> (y &amp; <span class="number">0x01</span>)</span><br><span class="line">            &#123;</span><br><span class="line">                cnt++;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h1 id="屏幕相关"><a href="#屏幕相关" class="headerlink" title="屏幕相关"></a>屏幕相关</h1><h2 id="开机logo时会先暗再完全亮"><a href="#开机logo时会先暗再完全亮" class="headerlink" title="开机logo时会先暗再完全亮"></a>开机logo时会先暗再完全亮</h2><p>是因为在屏幕驱动那已经使能控制器 把那的屏蔽搬到开机那然后后面延时一下再打开背光即可</p>
+<p><strong>但是会导致黑色背景的logo开机会有闪一瞬间花屏</strong></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250823111054035.png" alt="image-20250823111054035"></p>
+<p>所以还是不要上面这种写法，花屏的可以这样加延时解决：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/image-20250823150653174.png" alt="image-20250823150653174"></p>
+<h2 id="帧率计算"><a href="#帧率计算" class="headerlink" title="帧率计算"></a>帧率计算</h2><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">R_TFT_H_PERIOD = <span class="number">4</span> + <span class="number">16</span> + <span class="number">480</span> + <span class="number">2</span>;</span><br><span class="line">R_TFT_V_PERIOD = <span class="number">2</span> + <span class="number">14</span> + <span class="number">640</span> + <span class="number">70</span>;</span><br><span class="line"></span><br><span class="line"><span class="built_in">drv_l1_tft_clk_set</span>(TFT_CLK_DIVIDE_8); <span class="comment">// 设置8分频</span></span><br><span class="line"></span><br><span class="line">计算：</span><br><span class="line"><span class="number">198000000</span> / <span class="number">8</span> / (R_TFT_H_PERIOD * R_TFT_V_PERIOD) = <span class="number">67.91</span> Hz</span><br></pre></td></tr></table></figure>
+
+
+
+
+
+<h2 id="ST7735底部有长方形的撕裂-虚化部分"><a href="#ST7735底部有长方形的撕裂-虚化部分" class="headerlink" title="ST7735底部有长方形的撕裂&#x2F;虚化部分"></a>ST7735底部有长方形的撕裂&#x2F;虚化部分</h2><p>大概率是刷新率问题</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> TFT_TAR_CLK      55000000 <span class="comment">// 调整主控这边送数据的频率 越小虚化部分越高</span></span></span><br></pre></td></tr></table></figure>
+
+<p>如果还没完全改善则改驱动的寄存器 屏的刷新率</p>
+<p>FPA 跟 BPA 就是 <strong>垂直方向的空白扫描时序</strong></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/11/%E5%87%8C%E9%80%9A2158-%E8%AE%B0%E5%BD%95/1754908598758.png" alt="1754908598758"></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">Wirte_Com_LC8bit</span>(<span class="number">0xb1</span>);</span><br><span class="line"><span class="built_in">Wirte_Data_LC8bit</span>(<span class="number">0x05</span>);</span><br><span class="line"><span class="built_in">Wirte_Data_LC8bit</span>(<span class="number">0x4c</span>); -&gt; <span class="built_in">Wirte_Data_LC8bit</span>(<span class="number">0x3c</span>);</span><br><span class="line"><span class="built_in">Wirte_Data_LC8bit</span>(<span class="number">0x4c</span>); -&gt; <span class="built_in">Wirte_Data_LC8bit</span>(<span class="number">0x3c</span>);</span><br></pre></td></tr></table></figure>
+
+<p>这里相当于提高了帧率</p>
+
+      </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%B1%8F%E5%B9%95%E5%BA%95%E9%83%A8%E5%87%BA%E7%8E%B0%E6%A8%AA%E7%BA%BF%E6%9D%A1-%E8%B7%9F%E7%9D%80sensor%E8%B5%B0"><span class="toc-text">屏幕底部出现横线条(跟着sensor走)</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%95%88%E6%9E%9C"><span class="toc-text">效果</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#AWB%E5%81%8F%E7%BB%BF"><span class="toc-text">AWB偏绿</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#PCCAM"><span class="toc-text">PCCAM</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#WiFi%E7%9B%B8%E5%85%B3"><span class="toc-text">WiFi相关</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#app%E9%87%8C%E7%82%B9%E5%87%BB%E5%BC%80%E5%A7%8B%E5%BD%95%E5%83%8F%E5%90%8E%E5%A4%A7%E6%A6%82%E6%B5%81%E7%A8%8B"><span class="toc-text">app里点击开始录像后大概流程</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#wifi%E6%97%B6%E7%94%A81080FHD%E5%BD%95%E5%88%B6%E8%A7%86%E9%A2%91%E8%87%AA%E5%8A%A8%E4%B8%8B%E4%B8%80%E6%AE%B5%E4%BC%9A%E5%8D%A1%E6%AD%BB"><span class="toc-text">wifi时用1080FHD录制视频自动下一段会卡死</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Sensor"><span class="toc-text">Sensor</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%90%86%E8%AE%BA"><span class="toc-text">理论</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%B0%83%E8%AF%95"><span class="toc-text">调试</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%96%B0sensor%E8%BF%9B%E4%B8%8D%E5%8E%BB%E6%91%84%E5%83%8F%E5%A4%B4"><span class="toc-text">新sensor进不去摄像头</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%B0%8F%E5%B1%8F%E9%A2%84%E8%A7%88%E5%85%A8%E5%B1%8F%E6%98%BE%E7%A4%BA"><span class="toc-text">小屏预览全屏显示</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%A4%A7%E5%A4%B4%E8%B4%B4"><span class="toc-text">大头贴</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#RGB565%E9%A2%9C%E8%89%B2"><span class="toc-text">RGB565颜色</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%A4%A7%E5%A4%B4%E8%B4%B4%E7%9A%84%E9%80%8F%E6%98%8E%E5%8C%BA%E5%9F%9F%E9%99%90%E5%88%B6"><span class="toc-text">大头贴的透明区域限制</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%B1%8F%E5%B9%95%E7%9B%B8%E5%85%B3"><span class="toc-text">屏幕相关</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%BC%80%E6%9C%BAlogo%E6%97%B6%E4%BC%9A%E5%85%88%E6%9A%97%E5%86%8D%E5%AE%8C%E5%85%A8%E4%BA%AE"><span class="toc-text">开机logo时会先暗再完全亮</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B8%A7%E7%8E%87%E8%AE%A1%E7%AE%97"><span class="toc-text">帧率计算</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#ST7735%E5%BA%95%E9%83%A8%E6%9C%89%E9%95%BF%E6%96%B9%E5%BD%A2%E7%9A%84%E6%92%95%E8%A3%82-%E8%99%9A%E5%8C%96%E9%83%A8%E5%88%86"><span class="toc-text">ST7735底部有长方形的撕裂&#x2F;虚化部分</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+        <!-- 添加安全检查：确保 social 存在且是数组 否则为空报错 -->
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        博客苟活17天了
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2022026282号-1</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        Theme by Oranges | Powered by Hexo
+        
+    </div>
+  
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/backtotop.js"></script>
+    
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/colorscheme.js"></script>
+    
+
+
+
+
+        
+
+      </div>
+    </div>
+  
+        <style>
+            [bg-lazy] {
+                background-image: none !important;
+                background-color: #eee !important;
+            }
+        </style>
+        <script>
+            window.imageLazyLoadSetting = {
+                isSPA: false,
+                preloadRatio: 1,
+                processImages: null,
+            };
+        </script><script>window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z\d\-\.\+]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(t.test(e.href)||r.test(e.href))&&(e.href=a.dataset.original)})});</script><script>(r=>{r.imageLazyLoadSetting.processImages=t;var a=r.imageLazyLoadSetting.isSPA,o=r.imageLazyLoadSetting.preloadRatio||1,d=i();function i(){var t=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")),e=Array.prototype.slice.call(document.querySelectorAll("[bg-lazy]"));return t.concat(e)}function t(t){(a||t)&&(d=i());for(var e,n=0;n<d.length;n++)0<=(e=(e=d[n]).getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(r.innerHeight*o||document.documentElement.clientHeight*o)&&(()=>{var t,e,a,o,i=d[n];e=function(){d=d.filter(function(t){return i!==t}),r.imageLazyLoadSetting.onImageLoaded&&r.imageLazyLoadSetting.onImageLoaded(i)},(t=i).dataset.loaded||(t.hasAttribute("bg-lazy")?(t.removeAttribute("bg-lazy"),e&&e()):(a=new Image,o=t.getAttribute("data-original"),a.onload=function(){t.src=o,t.removeAttribute("data-original"),t.setAttribute("data-loaded",!0),e&&e()},a.onerror=function(){t.removeAttribute("data-original"),t.setAttribute("data-loaded",!1),t.src=o},t.src!==o&&(a.src=o)))})()}function e(){clearTimeout(t.tId),t.tId=setTimeout(t,500)}t(),document.addEventListener("scroll",e),r.addEventListener("resize",e),r.addEventListener("orientationchange",e)})(this);</script></body>
+</html>
