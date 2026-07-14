@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="烊烊" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="嵌入式 学习" />
+  
+  
+  
+  <title>
+    
+      stm32必备知识点 
+      
+      
+      |
+    
+     烊烊
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/css/my_woff2.css" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+   
+
+  
+
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+
+
+  <!-- phone live -->
+<script>
+// 当前正在播放的 live photo 相关信息
+let currentPlaying = null;
+document.querySelectorAll('.live-photo .icon img').forEach(img => {
+    img.addEventListener('click', function (e) {
+        // 阻止浏览器默认的图片预览行为
+        e.preventDefault();
+        // 这里可以保留你自己的点击逻辑，比如播放视频
+        console.log('触发自定义业务逻辑');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('.live-photo').forEach(livePhoto => {
+		const container = livePhoto.querySelector('.container');
+		const icon = livePhoto.querySelector('.icon, .icon_1'); // 这里因为添加了icon_1样式所以这里也需要增加一个
+		const video = container.querySelector('video');
+		const image = container.querySelector('img');
+		const warning = livePhoto.querySelector('.warning');
+		// TODO 优化：等图片可用的时候再把视频显示出来，测试出现
+		// 过视频比图片先加载完成，导致 flicker。
+		// 尽可能修复 Safari 无法播放的问题
+		// if (/WebKit/.test(navigator.userAgent)) {
+		// NOTE: 为了避免预加载，不应该提前 load。
+		// video.load();
+		// }
+		// fix: 鼠标进入 → 开始加载 → 鼠标离开（加载成功前） → 加载失败。
+		let within = false;
+        // 停留时间控制变量
+        let playTimer = null;
+        let isPlaying = false;
+        let touchStartTime = 0;
+
+        // 停止上一张的播放 清除状态
+        const stopCurrentPlaying = () => {
+            if (currentPlaying && currentPlaying.video) {
+                currentPlaying.video.pause();
+                // currentPlaying.icon.classList.remove('rotate');
+                currentPlaying.livePhoto.classList.remove('zoom');
+                currentPlaying.warning.classList.remove('show');
+                currentPlaying.isPlaying = false;
+                currentPlaying.within = false;
+            }
+        };
+
+		const start = async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+
+            // ⛔ 先停止之前正在播放的 live photo
+            if (!(currentPlaying && currentPlaying.video === video)) {
+                stopCurrentPlaying();
+            }
+
+			within = true;
+            isPlaying = true;   
+			// 添加旋转类
+			// icon.classList.add('rotate');
+			try {
+				video.currentTime = 0;
+				await video.play();
+				livePhoto.classList.add('zoom');
+                // 更新当前播放变量
+                currentPlaying = { livePhoto, video, icon, warning, isPlaying, within };
+			}
+			catch(e) {
+				console.log(e);
+				if (within && e instanceof DOMException) {
+					if (['NotAllowedError','AbortError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面1';
+					} else if (['NotSupportedError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面2';
+					} else {
+						warning.innerText = `其它错误：${e}`;
+					}
+					warning.classList.add('show');
+				}
+			}
+		};
+		const leave = (e) => {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            
+            // 清理状态
+            // icon.classList.remove('rotate');
+            livePhoto.classList.remove('zoom');
+            warning.classList.remove('show');
+            within = false;
+            isPlaying = false;
+            video.pause();
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		};
+        // 鼠标进入 - 开始计时
+        const handleMouseEnter = (e) => {
+            within = true;
+            // 清除之前的定时器
+            if (playTimer) {
+                clearTimeout(playTimer);
+            }
+            
+            // 400ms后自动播放
+            playTimer = setTimeout(() => {
+                if (within) { // 确保还在区域内
+                    start(e);
+                }
+                playTimer = null;
+            }, 400);
+        };
+        // 鼠标离开 - 检查停留时间
+        const handleMouseLeave = (e) => {
+            leave(e);
+        };
+		icon.addEventListener('mouseenter',   handleMouseEnter);
+		icon.addEventListener('mouseleave',   handleMouseLeave);
+		// image.addEventListener('touchstart',  start);
+		// image.addEventListener('touchend',    leave);
+        // 👇 修改手机端触摸触发方式
+        image.addEventListener('touchstart', function (e) {
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        image.addEventListener('touchend', function (e) {
+            if (Date.now() - touchStartTime < 200) { // 点击播放
+                start(e);
+            }
+            // leave(e);
+        });
+		image.addEventListener('touchcancel', leave);
+		video.addEventListener('ended', () => {
+			livePhoto.classList.remove('zoom');
+            // icon.classList.remove('rotate');
+            isPlaying = false;
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		});
+	});
+});
+</script>
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img no-lazy src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/avatar.webp" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">烊烊のBlog</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">主页</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">归档</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/chat/">
+          <a href="/chat/">闲谈</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于me</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/activeNav.js"></script>
+    
+
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mathjax/3.2.0/es5/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">stm32必备知识点</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2025-11-17 09:19:44
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/STM32/" title="STM32">
+                    <b>#</b> STM32
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <blockquote>
+<p>STM32 32位处理器分类详细信息参考：<a target="_blank" rel="noopener" href="https://www.st.com.cn/zh/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html">https://www.st.com.cn/zh/microcontrollers-microprocessors/stm32-32-bit-arm-cortex-mcus.html</a></p>
+</blockquote>
+<h1 id="字节对齐"><a href="#字节对齐" class="headerlink" title="字节对齐"></a>字节对齐</h1><p>结构体的首地址不是4的整数倍时，直接用uint32_t强制转换会出现硬件错误导致死机。问题原因是内存访问机制，要求<strong>uint32_t <em><strong>指向的地址最低2bit必须是 0，</strong>uint16_t</em></strong> 指向的地址最低1bit必须是0。也就是说32位数存放在RAM里的地址必须是4的倍数，16位数存放在RAM里的地址必须是2的倍数</p>
+<blockquote>
+<p>外部SRAM需要注意</p>
+</blockquote>
+<h1 id="浮点单元FPU"><a href="#浮点单元FPU" class="headerlink" title="浮点单元FPU"></a>浮点单元FPU</h1><p>浮点计算的2种实现方法：</p>
+<ol>
+<li><code>【软浮点】</code>通过浮点库去实现浮点运算的，效率低，成本低，编译环境支持浮点库，可以将用C语言写的浮点数运算转成整形运算，对于单片机来说根本不知道float、double这回事，所以单片机不需要有专门的浮点运算单元就可以算浮点数了</li>
+<li><code>【硬浮点】</code>通过浮点运算单元（FPU）来完成的，效率高，成本高，F4支持FPU，但是不是一定要用，需要配置</li>
+</ol>
+<ul>
+<li>编程时不需要考虑CPU的软浮点或者硬浮点特性，直接用C编程实现功能，然后设置好后直接编译，按照这样的规则编译：浮点运算可以用硬浮点时用FPU，如果不能用硬浮点就自动用软浮点来实现</li>
+<li>F4内部FPU只能算float不能算double</li>
+<li>F4内部FPU只能算float的简单加减乘除，不能算float的sin、cos等复杂运算</li>
+</ul>
+<p>keil里对于有FPU功能的芯片默认打开了</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20251107114953779.png" alt="image-20251107114953779"></p>
+<h1 id="芯片内部Flash与SRAM"><a href="#芯片内部Flash与SRAM" class="headerlink" title="芯片内部Flash与SRAM"></a>芯片内部Flash与SRAM</h1><blockquote>
+<p>参考文章：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/xiaobaibai2021/p/15716900.html">https://www.cnblogs.com/xiaobaibai2021/p/15716900.html</a></li>
+</ul>
+</blockquote>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250826225100421.png" alt="image-20250826225100421"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250826225252763.png" alt="image-20250826225252763"></p>
+<p>**FLASH(闪存)**用来存储程序的，掉电后数据不丢失的存储器(FLASH芯片只能一大片一大片地擦除，而EEPROM可以单个字节擦除)</p>
+<p>**SRAM(静态随机存取存储器)**是用来存储运行程序中的中间变量(STM32F1系列可以通过FSMC外设来拓展SRAM)</p>
+<p>注意：SRAM和SDRAM是不相同的，SDRAM是同步动态随机存储器，同步是指内存工作需要同步时钟，内部的命令的发送与数据的传输都以它为基准；动态是指存储阵列需要不断的刷新来保证数据不丢失；随机是指数据不是线性依次存储，而是自由指定地址进行数据读写</p>
+<p>在keil的 <strong>.map</strong> 里面可以看到程序的这些用量</p>
+<blockquote>
+<p>Code：代码空间，本质是ARM指令（ <strong>FLASH</strong>）</p>
+<p>RO-data：即 Read Only-data， 表示程序定义的常量，如 const 类型（ <strong>FLASH</strong>）</p>
+<p>RW-data：即 Read Write-data， 非0初始化的全局和静态变量占用的RAM大小，同时还要占用等量的ROM大小用于存放这些非0变量的初值（<strong>FLASH+RAM</strong>）</p>
+<p>ZI-data：即 Zero Init-data， 0初始化的内存区的大小（该区域3个用途：0初始化的全局和静态变量+堆区+栈区）(<strong>RAM</strong>)</p>
+<p>由上可知：</p>
+<p>程序占用 <strong>FLASH&#x3D;Code + RO-data + RW-data</strong> 即map文件中ROM size</p>
+<p>程序占用 <strong>RAM &#x3D; RW-data + ZI-data</strong>   即map文件中RW size</p>
+<p>注意：</p>
+<ul>
+<li>RAM掉电数据会丢失，RW-data是非0初始化的数据，已初始化的数据需要被存储在掉电不会丢失的FLASH中，上电后会从FLASH搬移到RAM中</li>
+<li>因为ZI数据是0，没必要包含，只要在程序运行前把ZI数据区域一律清零即可，包含进去反而浪费Flash存储空间，所以烧录的 bin&#x2F;hex 文件不包含这个</li>
+</ul>
+</blockquote>
+<blockquote>
+<p>如果是用makefile编译的话会生成下面这样子的数据(单位字节)：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">text    data     bss     dec     hex filename</span><br><span class="line">16416     364    2252   19032    4a58 build/makefile_demo.elf</span><br></pre></td></tr></table></figure>
+
+<p>text（代码段）： 存放程序的可执行指令代码。编译器将源代码编译生成的机器指令存储在这个段中</p>
+<p>data（数据段）： 存放程序中已经初始化的全局变量和静态变量。这些变量在程序编译时就已经确定了初始值</p>
+<p>bss（Block Started by Symbol）： 存放未初始化的全局变量和静态变量。这些变量在程序加载时会被系统自动清零</p>
+<p>dec（十进制数）： 是 text、data、bss 三个段的总和，表示程序在内存中占用的总空间大小</p>
+<p><strong>text 段通常存储在 ROM（如 Flash）中，因为代码是只读的</strong></p>
+<p><strong>data 和 bss 段通常存储在 RAM 中，因为程序运行时需要对数据进行读写操作</strong></p>
+<p>也就是上面这样意思就是程序已经占用：</p>
+<p><strong>16KB Flash + 2.6KB RAM</strong></p>
+</blockquote>
+<blockquote>
+<ul>
+<li>stm32的复位地址是从 <strong>0x0000 0000</strong> 开始</li>
+<li>flash地址起始于 <strong>0x0800 0000</strong>，结束地址是 <strong>0x0800 0000加上芯片实际的flash大小</strong></li>
+<li>RAM起始地址是 <strong>0x2000 0000</strong>，结束地址是 <strong>0x2000 0000加上芯片的RAM大小</strong></li>
+</ul>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250826235048138.png" alt="image-20250826235048138"></p>
+<p>上面图中</p>
+<ul>
+<li><strong>Flash</strong>: <code>0x08000000</code> ~ <code>0x00010000</code></li>
+<li><strong>RAM</strong>: <code>0x20000000</code> ~ <code>0x00005000</code></li>
+</ul>
+<p>可以通过Size算出芯片的flash跟ram分别是多少？</p>
+<p>0x5000 -&gt; 20k</p>
+<p>0x10000 -&gt; 64k</p>
+</blockquote>
+<blockquote>
+<p>其他：</p>
+<p>stm32芯片烧写时，就是将软件编译生成的目标代码，烧写到0x08000000地址起始的flash中，如果目标代码小于芯片flash的容量，则最后一段flash就是空闲的。这一段空闲区域就可以用来存储用户的数据，实现掉电不丢失</p>
+</blockquote>
+<h1 id="keil相关"><a href="#keil相关" class="headerlink" title="keil相关"></a>keil相关</h1><h2 id="not-found-device"><a href="#not-found-device" class="headerlink" title="not found device"></a>not found device</h2><p>使用keil4版本写的程序在keil5上打开会出错，解决方法：</p>
+<p>将Project文件夹中的工程扩展名由 <strong>.uvproj</strong> 改为 <strong>.uvprojx</strong></p>
+<p>然后对于芯片的pack包也要安装好</p>
+<h2 id="生成bin文件"><a href="#生成bin文件" class="headerlink" title="生成bin文件"></a>生成bin文件</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">fromelf --bin -o <span class="string">&quot;<span class="variable">$L</span>@L.bin&quot;</span> <span class="string">&quot;#L</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20251011100407584.png" alt="image-20251011100407584"></p>
+<h2 id="屏蔽keil一些警告"><a href="#屏蔽keil一些警告" class="headerlink" title="屏蔽keil一些警告"></a>屏蔽keil一些警告</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--diag_suppress=1,177,550,870</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="keil-合并下载"><a href="#keil-合并下载" class="headerlink" title="keil 合并下载"></a>keil 合并下载</h2><p>首先是先编译bootloader的工程生成的bin复制到一个文件夹下备用</p>
+<p>然后编译APP1工程生成的bin也复制到文件夹下</p>
+<p>编写脚本执行：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># 将bootloader填充到<span class="number">8</span>KB(自己程序分配的) 如果不填充的话合并后地址异常 导致程序只会跑bootloader</span><br><span class="line">srec_cat.exe boot_demo.bin -Binary -fill <span class="number">0xFF</span> <span class="number">0x0</span> <span class="number">0x2000</span> -crop <span class="number">0x0</span> <span class="number">0x2000</span> -o boot_8k.bin -Binary</span><br><span class="line"># 合并 bootloader 跟 APP 的bin文件</span><br><span class="line">copy /b .\boot_8k.bin + .\ota_demo.bin Firmware_<span class="number">1.</span>bin</span><br><span class="line"><span class="meta"># bin 转 hex M0系列起始地址是 0x8000000</span></span><br><span class="line">srec_cat.exe Firmware_<span class="number">1.</span>bin -Binary -offset <span class="number">0x8000000</span> -o Firmware_<span class="number">1.</span>hex -Intel</span><br></pre></td></tr></table></figure>
+
+<p>然后下载程序可以用keil，需要把这个合并后的hex放到输出文件夹里，然后在keil把这里名称改成hex直接点下载即可(不需要点编译)，下载完成后再改回原样</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20251013172619899.png" alt="image-20251013172619899"></p>
+<h1 id="vscode-Cmake-cubeMX-openOCD开发"><a href="#vscode-Cmake-cubeMX-openOCD开发" class="headerlink" title="vscode+Cmake+cubeMX+openOCD开发"></a>vscode+Cmake+cubeMX+openOCD开发</h1><blockquote>
+<p>参考文章：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://haobogu.github.io/posts/keyboard/openocd/">https://haobogu.github.io/posts/keyboard/openocd/</a></li>
+<li><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_32348883/article/details/135213750">https://blog.csdn.net/qq_32348883/article/details/135213750</a></li>
+</ul>
+</blockquote>
+<blockquote>
+<ul>
+<li>首先安装环境(主要是ARM 的 GUN 工具链, make)</li>
+</ul>
+<p>使用一键环境软件：<strong>C++ Runtime Installer</strong></p>
+<p>安装时需要注意不要用代理</p>
+<p>安装在其他盘新建文件夹里</p>
+<p>安装完成验证一下</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828115509515.png" alt="image-20250828115509515"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828115433506.png" alt="image-20250828115433506"></p>
+<ul>
+<li>openOCD下载程序</li>
+</ul>
+<p>下载openOCD官网：<a target="_blank" rel="noopener" href="https://www.gnutoolchains.com/arm-eabi/openocd/?login=from_csdn">https://www.gnutoolchains.com/arm-eabi/openocd/?login=from_csdn</a></p>
+<p>也可以github下载：<a target="_blank" rel="noopener" href="https://github.com/xpack-dev-tools/openocd-xpack/releases">https://github.com/xpack-dev-tools/openocd-xpack/releases</a></p>
+<p>下载解压后添加环境变量</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828171046103.png" alt="image-20250828171046103"></p>
+<p>打开cmd验证</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828171104549.png" alt="image-20250828171104549"></p>
+<ul>
+<li>svd文件</li>
+</ul>
+<p>注：svd文件是描述了 MCU 的外设和寄存器映射的文件，一般在keil下的pack包里面</p>
+<p><strong>D:\ARM_1\keil\pack\Keil\STM32F1xx_DFP\2.4.1\SVD</strong></p>
+<p>也可以去下载修正版</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/tinygo-org/stm32-svd">https://github.com/tinygo-org/stm32-svd</a></p>
+<ul>
+<li>arm-none-eabi-gdb.exe</li>
+</ul>
+<p>ARM工具链下载：<a target="_blank" rel="noopener" href="https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads">https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads</a></p>
+<p>windows 64bit下载这个：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250829095336171.png" alt="image-20250829095336171"></p>
+<p>解压后配置环境变量即可</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250829095411439.png" alt="image-20250829095411439"></p>
+<p>cmd验证</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250829095426101.png" alt="image-20250829095426101"></p>
+</blockquote>
+<blockquote>
+<p>vscode安装下面这些插件</p>
+</blockquote>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828091132214.png" alt="image-20250828091132214"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828091145454.png" alt="image-20250828091145454"></p>
+<blockquote>
+<p>cubemx正常配置即可，然后输出工程时选择 <strong>Makefile</strong> 或者 <strong>CMake</strong> 输出都可以</p>
+</blockquote>
+<p>注意芯片的软件包版本要对，不然可能编译会找不到 <strong>core_cm3.h</strong> 可以尝试换低版本的软件包再生成试试看</p>
+<p>生成工程后先删掉一些不需要的东西，否则工程文件夹太大了。一般来说删掉 <strong>\Drivers\CMSIS</strong> 目录下除 <strong>Device</strong> 和 <strong>Include</strong> 之外的所有文件</p>
+<p>vscode里需要根据芯片填写这两个宏 不然变量会显示红色波浪线 大量的未定义标识符警告(这两个宏可以在makefile文件里面找到)</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828092248830.png" alt="image-20250828092248830"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828091912025.png" alt="image-20250828091912025"></p>
+<blockquote>
+<p>这里的 <strong>C_cpp_properties.json</strong> 主要内容解析：</p>
+<ul>
+<li>首先我们看”defines”，这个是告诉VSCode你预先定义了哪些宏</li>
+<li>“includePath”，这个是告诉VSCode去哪些目录里找头文件(也可以在makefile文件找到,忽略前面的-I，将后面的路径填入即可 也直接偷懒填”${workspaceFolder}&#x2F;<strong>“，其中workspaceFolder表示当前目录，</strong>表示该目录下递归遍历所有文件)</li>
+<li>“path”，似乎不是很重要，和上面的”includePath”填一样的或者填”${workspaceFolder}&#x2F;“即可</li>
+<li>“compilerPath”，显然是填编译器路径</li>
+</ul>
+</blockquote>
+<p>然后自己写的驱动需要引入则改makefile文件即可</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828093632077.png" alt="image-20250828093632077"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828093650595.png" alt="image-20250828093650595"></p>
+<p>有些用到的头文件 CubeMX 生成的工程里并没有携带，这些<strong>C语言的标准库头文件</strong>是需要在 arm-none-eabi-gcc 的安装路径里找的</p>
+<p>在cmd输入命令就可以看到 arm-none-eabi-cpp 默认的头文件和库文件路径了，把它们添加进去：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;main()&#123;&#125;&#x27;</span> | arm-none-eabi-cpp -E -v -</span><br></pre></td></tr></table></figure>
+
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828120106397.png" alt="image-20250828120106397"></p>
+<p>把这几个头文件加进去你会发现还是会报错，多半是什么 uint32_t 未定义之类的。这是因为 GNU-ARM 的 stdint.h 会向下钻取并生成 stdint-gcc.h ，后者依赖于一个宏，同时它也依赖其他宏才能到达那里，但是由于这些宏我们未定义所以会报错。解决这个问题的办法就是手动定义那些宏</p>
+<p>继续输入命令(查看 arm-gcc 的内置宏定义，查出来结果可能有几百条 全部添加 在添加的时候只保留第一个空格前边的内容)：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">arm-none-eabi-gcc -dM -E - &lt; nul</span><br></pre></td></tr></table></figure>
+
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828132817990.png" alt="image-20250828132817990"></p>
+<p>添加后就正常补全还有不会报红色波浪线了(一些特殊的文件如果报红则可以通过添加头文件路径即可消除)</p>
+<p>注意：但是进入一些库函数文件里面时还是会报错，原因是我们的json里面是 <strong>“intelliSenseMode”: “windows-msvc-x64”</strong>  智能感应模式是msvc-x64(微软的VC编译器)，但是我们用的是GCC，所以需要改成 <strong>“gcc-x64”</strong> 即可</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828142721790.png" alt="image-20250828142721790"></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828142709379.png" alt="image-20250828142709379"></p>
+<blockquote>
+<p>关于 GCC 编译生成的 bin 文件太大的问题</p>
+<p>发现同一个工程配置用keil编译出来的比用gcc编译出来的小很多 差不多10k</p>
+<p>解决方法：</p>
+<ul>
+<li>避免使用 printf() 等 C 语言标准库函数可以大幅减小 bin 文件的体积</li>
+<li>在 Makefile 中不使用 <strong>-u _printf_float</strong> 和 <strong>-u _scanf_float</strong> 参数可以大幅减小 bin 文件的体积，只是这样 C 标准库中浮点数和字符串互转的功能就不起作用了</li>
+<li>删掉没有使用的函数也能缩小 bin 文件大小</li>
+<li>GCC 编译出来的文件虽然大，但它和 Keil 编译出的文件关系也只是加法不是乘法</li>
+<li>如果使用了 OS 的话，那几乎可以肯定它是一定使用了 C 标准库的函数了</li>
+</ul>
+</blockquote>
+<p>openOCD使用方法:</p>
+<ul>
+<li>连接到目标芯片</li>
+</ul>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># openocd -f &lt;接口配置文件&gt; -f &lt;目标芯片配置文件&gt;</span></span><br><span class="line"><span class="comment"># 接口配置文件和目标芯片配置文件需要使用绝对路径</span></span><br></pre></td></tr></table></figure>
+
+<p>「接口配置文件」是openOCD支持的下载接口，在 <strong>scripts\interface</strong> 文件夹下</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828171445001.png" alt="image-20250828171445001"></p>
+<p>「目标芯片配置文件」是openOCD支持的目标芯片，在 <strong>scripts\target</strong> 文件夹下</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828171603332.png" alt="image-20250828171603332"></p>
+<p>在工程的makefile的最下面添加即可(<strong>也可以换成tasks.json方式执行更加快 写在后面了推荐</strong>)：</p>
+<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># USER BEGIN .........................</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#######################################</span></span><br><span class="line"><span class="comment"># download</span></span><br><span class="line"><span class="comment">#######################################</span></span><br><span class="line">OPENOCD_ROOT = D:/ARM_1/openocd/OpenOCD-20250710-0.12.0/share/openocd</span><br><span class="line">OPENOCD_INTERFACE = stlink.cfg</span><br><span class="line">OPENOCD_TARGET = stm32f1x.cfg</span><br><span class="line">OPENOCD_FLASH_START = 0x08000000</span><br><span class="line">PWD_DIR = E:/MyPro/stm32_103/makefile_demo</span><br><span class="line"></span><br><span class="line"><span class="section">download:</span></span><br><span class="line">	openocd \</span><br><span class="line">	-f <span class="variable">$(OPENOCD_ROOT)</span>/scripts/interface/<span class="variable">$(OPENOCD_INTERFACE)</span> \</span><br><span class="line">	-f <span class="variable">$(OPENOCD_ROOT)</span>/scripts/target/<span class="variable">$(OPENOCD_TARGET)</span> \</span><br><span class="line">	-c init -c halt \</span><br><span class="line">	-c <span class="string">&quot;flash write_image erase <span class="variable">$(PWD_DIR)</span>/<span class="variable">$(BUILD_DIR)</span>/<span class="variable">$(TARGET)</span>.bin <span class="variable">$(OPENOCD_FLASH_START)</span>&quot;</span> \</span><br><span class="line">	-c reset -c shutdown</span><br><span class="line"><span class="comment"># USER END .........................</span></span><br></pre></td></tr></table></figure>
+
+
+
+<p>然后下载时就输入命令即可</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make download</span><br></pre></td></tr></table></figure>
+
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250828181906891.png" alt="image-20250828181906891"></p>
+<blockquote>
+<p>调试 tasks 与 launch</p>
+</blockquote>
+<p>安装vscode插件 <strong>Task Buttons</strong> (34k下载量那个才是！！！)</p>
+<p>配置按钮调用任务就很方便</p>
+<p>然后 <strong>tasks.json</strong> 主要是一些任务，当用户执行某个任务时，要在终端里运行什么命令</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;tasks&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="comment">// ------------ MakeFile工程</span></span><br><span class="line">    <span class="attr">&quot;label&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Makefile build&quot;</span><span class="punctuation">,</span>         <span class="comment">// 任务名称</span></span><br><span class="line">    <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;shell&quot;</span><span class="punctuation">,</span>                   <span class="comment">// 直接调用 shell 命令</span></span><br><span class="line">    <span class="attr">&quot;command&quot;</span><span class="punctuation">:</span> <span class="string">&quot;make&quot;</span><span class="punctuation">,</span>                 <span class="comment">// 使用 make 进行构建</span></span><br><span class="line">    <span class="attr">&quot;args&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="string">&quot;-j8&quot;</span>                          <span class="comment">// 多线程并行编译 (可改成 -j4 或 -j，根据你 CPU 内核数)</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;group&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;kind&quot;</span><span class="punctuation">:</span> <span class="string">&quot;build&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;isDefault&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span>              <span class="comment">// 默认构建任务 (Ctrl+Shift+B 会执行这个)</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;problemMatcher&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="string">&quot;$gcc&quot;</span>                         <span class="comment">// 使用内置 GCC 错误匹配器 (方便在 VSCode 里跳转到错误位置)</span></span><br><span class="line">    <span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<p><strong>launch.json</strong> 主要是调试时的一些配置</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="comment">// 基本信息--------------</span></span><br><span class="line">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Debug with ST-Link&quot;</span><span class="punctuation">,</span> <span class="comment">// 配置的名字，会出现在 VSCode 调试下拉菜单里</span></span><br><span class="line">    <span class="attr">&quot;cwd&quot;</span><span class="punctuation">:</span> <span class="string">&quot;$&#123;workspaceRoot&#125;&quot;</span><span class="punctuation">,</span> <span class="comment">// 调试会话的工作目录</span></span><br><span class="line">    <span class="attr">&quot;executable&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./build/$&#123;workspaceRootFolderName&#125;.elf&quot;</span><span class="punctuation">,</span> <span class="comment">// 要加载的可执行文件</span></span><br><span class="line">    <span class="attr">&quot;request&quot;</span><span class="punctuation">:</span> <span class="string">&quot;launch&quot;</span><span class="punctuation">,</span> <span class="comment">// 表示启动一个调试会话</span></span><br><span class="line">    <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;cortex-debug&quot;</span><span class="punctuation">,</span> <span class="comment">// 使用 Cortex-Debug 插件</span></span><br><span class="line">    <span class="comment">// 调试器和目标配置-------------</span></span><br><span class="line">    <span class="attr">&quot;servertype&quot;</span><span class="punctuation">:</span> <span class="string">&quot;openocd&quot;</span><span class="punctuation">,</span> <span class="comment">// 使用 OpenOCD 作为 GDB 服务器</span></span><br><span class="line">    <span class="attr">&quot;device&quot;</span><span class="punctuation">:</span> <span class="string">&quot;STM32F103C8T6&quot;</span><span class="punctuation">,</span> <span class="comment">// 指定芯片型号</span></span><br><span class="line">    <span class="attr">&quot;configFiles&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="comment">// OpenOCD 的配置脚本</span></span><br><span class="line">        <span class="string">&quot;interface/stlink.cfg&quot;</span><span class="punctuation">,</span> <span class="comment">// D:\ARM_1\openocd\OpenOCD-20250710-0.12.0\share\openocd\scripts\interface</span></span><br><span class="line">        <span class="string">&quot;target/stm32f1x.cfg&quot;</span> <span class="comment">// D:\ARM_1\openocd\OpenOCD-20250710-0.12.0\share\openocd\scripts\target</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="comment">// 调试辅助配置---------------</span></span><br><span class="line">    <span class="attr">&quot;svdFile&quot;</span><span class="punctuation">:</span> <span class="string">&quot;./STM32F103.svd&quot;</span><span class="punctuation">,</span> <span class="comment">//选择芯片外设寄存器文件</span></span><br><span class="line">    <span class="attr">&quot;liveWatch&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="comment">// 实时监控变量值 采样频率 4 次/秒</span></span><br><span class="line">        <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;samplesPerSecond&quot;</span><span class="punctuation">:</span> <span class="number">4</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;searchDir&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="punctuation">]</span><span class="punctuation">,</span> <span class="comment">// 指定 OpenOCD 的额外配置文件目录</span></span><br><span class="line">    <span class="attr">&quot;runToEntryPoint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;main&quot;</span><span class="punctuation">,</span> <span class="comment">// 调试时自动运行到 main() 函数处停下</span></span><br><span class="line">    <span class="attr">&quot;showDevDebugOutput&quot;</span><span class="punctuation">:</span> <span class="string">&quot;none&quot;</span><span class="punctuation">,</span> <span class="comment">// 控制调试日志输出等级 - 不显示</span></span><br><span class="line">    <span class="attr">&quot;preLaunchTask&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Makefile build&quot;</span> <span class="comment">// 预执行任务 flash with ST-Link</span></span><br><span class="line"><span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br></pre></td></tr></table></figure>
+
+<p>调试需要下载插件 <strong>Cortex-Debug</strong></p>
+<p>然后在 <strong>setting.json</strong> 填写 <strong>arm-none-eabi-gdb.exe</strong>的路径即可</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Cortex-Debug插件配置</span></span><br><span class="line"><span class="attr">&quot;cortex-debug.gdbPath.windows&quot;</span><span class="punctuation">:</span> <span class="string">&quot;D:\\msys\\msys64\\mingw64\\bin\\arm-none-eabi-gdb.exe&quot;</span><span class="punctuation">,</span></span><br></pre></td></tr></table></figure>
+
+<p>选择调试工具然后点击即可</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250829095538751.png" alt="image-20250829095538751"></p>
+<h2 id="调试"><a href="#调试" class="headerlink" title="调试"></a>调试</h2><blockquote>
+<p>可以看左侧的外围设备 <strong>ODR</strong>（Output Data Register）bit8&#x2F;bit9 引脚电平状态变化</p>
+</blockquote>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250829103051042.png" alt="image-20250829103051042"></p>
+<h2 id="使用过程遇到的问题"><a href="#使用过程遇到的问题" class="headerlink" title="使用过程遇到的问题"></a>使用过程遇到的问题</h2><blockquote>
+<p>下载程序后单片机没反应，编译过程中有警告:</p>
+<p><strong>warning: cannot find entry symbol Reset_Handler; defaulting to 08000000</strong></p>
+<p>(警告：找不到入口符号 Reset_Handler；默认为 08000000)</p>
+<p>通过git对比发现是 makefile 文件里这两行不知道为什么被注释导致的 重新打开即可</p>
+<figure class="highlight makefile"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ASM_SOURCES =  \</span><br><span class="line">ASFLAGS = <span class="variable">$(MCU)</span> <span class="variable">$(AS_DEFS)</span> <span class="variable">$(AS_INCLUDES)</span> <span class="variable">$(OPT)</span> -Wall -fdata-sections -ffunction-sections</span><br></pre></td></tr></table></figure>
+</blockquote>
+<h2 id="MakeFile不同设置的生成文件大小区别"><a href="#MakeFile不同设置的生成文件大小区别" class="headerlink" title="MakeFile不同设置的生成文件大小区别"></a>MakeFile不同设置的生成文件大小区别</h2><p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250904100056446.png" alt="image-20250904100056446"></p>
+<blockquote>
+<p>测试</p>
+<ul>
+<li><strong>OPT &#x3D; -Og</strong></li>
+</ul>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250904100148916.png" alt="image-20250904100148916"></p>
+<ul>
+<li><strong>OPT &#x3D; -Os</strong></li>
+</ul>
+<p>之前程序发现动画效果很卡顿 最终优化等级换成这个就不卡顿了</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250904100336587.png" alt="image-20250904100336587"></p>
+</blockquote>
+<h2 id="RTT调试"><a href="#RTT调试" class="headerlink" title="RTT调试"></a>RTT调试</h2><blockquote>
+<p>参考：</p>
+<ul>
+<li><a target="_blank" rel="noopener" href="https://www.cnblogs.com/snowsad/p/12076740.html">https://www.cnblogs.com/snowsad/p/12076740.html</a></li>
+<li><a target="_blank" rel="noopener" href="https://haobogu.github.io/posts/keyboard/rtt/">https://haobogu.github.io/posts/keyboard/rtt/</a></li>
+</ul>
+</blockquote>
+<blockquote>
+<p>官网下载：<a target="_blank" rel="noopener" href="https://www.segger.com/downloads/jlink/">https://www.segger.com/downloads/jlink/</a></p>
+<p>下载 window 64bit</p>
+</blockquote>
+<p>正常安装即可</p>
+<p>然后找到安装路径下的源码压缩包：</p>
+<p><strong>D:\Program Files\SEGGER\JLink_V866\Samples\RTT</strong></p>
+<p>解压丢工程里即可：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/26/stm32%E5%BF%85%E5%A4%87%E7%9F%A5%E8%AF%86%E7%82%B9/image-20250904154207064.png" alt="image-20250904154207064"></p>
+<p>然后自己加一个配置：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">if</span> C_USE_RTT_DEBUG</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOG_PROTO(type,color,format,...)            \</span></span><br><span class="line"><span class="meta">        SEGGER_RTT_printf(0,<span class="string">&quot;  %s%s&quot;</span>format<span class="string">&quot;\r\n%s&quot;</span>, \</span></span><br><span class="line"><span class="meta">                          color,                    \</span></span><br><span class="line"><span class="meta">                          type,                     \</span></span><br><span class="line"><span class="meta">                          ##__VA_ARGS__,            \</span></span><br><span class="line"><span class="meta">                          RTT_CTRL_RESET)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* 清屏*/</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOG_CLEAR() SEGGER_RTT_WriteString(0, <span class="string">&quot;  &quot;</span>RTT_CTRL_CLEAR)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* 无颜色日志输出 */</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOG(format,...) LOG_PROTO(<span class="string">&quot;&quot;</span>,<span class="string">&quot;&quot;</span>,format,##__VA_ARGS__)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">/* 有颜色格式日志输出 */</span></span><br><span class="line"><span class="comment">// Green</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGI(format,...) LOG_PROTO(<span class="string">&quot;INFO: &quot;</span>, RTT_CTRL_TEXT_BRIGHT_GREEN , format, ##__VA_ARGS__)</span></span><br><span class="line"><span class="comment">// Yellow</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGW(format,...) LOG_PROTO(<span class="string">&quot;WARN: &quot;</span>, RTT_CTRL_TEXT_BRIGHT_YELLOW, format, ##__VA_ARGS__)</span></span><br><span class="line"><span class="comment">// Red</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGE(format,...) LOG_PROTO(<span class="string">&quot;ERROR: &quot;</span>, RTT_CTRL_TEXT_BRIGHT_RED   , format, ##__VA_ARGS__)</span></span><br><span class="line"><span class="meta">#<span class="keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOG_CLEAR()</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOG</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGI</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGW</span></span><br><span class="line"><span class="meta">#<span class="keyword">define</span> LOGE</span></span><br><span class="line"><span class="meta">#<span class="keyword">endif</span> <span class="comment">// C_USE_RTT_DEBUG</span></span></span><br></pre></td></tr></table></figure>
+
+<p>makefile里面也添加对应头文件路径跟c文件</p>
+<p>然后launch.json里调试任务需要加个配置：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;rttConfig&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;enabled&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;address&quot;</span><span class="punctuation">:</span> <span class="string">&quot;auto&quot;</span><span class="punctuation">,</span> <span class="comment">// 开始搜索 RTT 控制块的地址。设置为“auto”时，Cortex-Debug 会使用 elf 文件中的地址</span></span><br><span class="line">    <span class="attr">&quot;clearSearch&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span> <span class="comment">// 为 true 时，清除搜索字符串</span></span><br><span class="line">    <span class="attr">&quot;polling_interval&quot;</span><span class="punctuation">:</span> <span class="number">20</span><span class="punctuation">,</span> <span class="comment">// 检查输出通道数据时等待的毫秒数（&gt; 0）。仅适用于 OpenOCD</span></span><br><span class="line">    <span class="attr">&quot;decoders&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;label&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;port&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;console&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="优化导致eeprom不正常"><a href="#优化导致eeprom不正常" class="headerlink" title="优化导致eeprom不正常"></a>优化导致eeprom不正常</h2><p>发现eeprom写正常 但是读就异常，读出来都是0xFF，换硬件I2C就正常，后面发现是因为开了 <strong>Os</strong>优化，导致us的延时里面没有执行，一开始是下面这种写法：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">middle_i2c_delay</span><span class="params">(<span class="type">uint16_t</span> us)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="type">uint8_t</span> i;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; (us * <span class="number">10</span>); i++);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>后面我把优化关闭就正常 但是导致OLED卡顿就不关闭，gcc也有宏可以进行限制代码部分不被优化：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC push_options</span></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC optimize (<span class="string">&quot;O1&quot;</span>)</span></span><br><span class="line"><span class="comment">// your code</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="keyword">pragma</span> GCC pop_options</span></span><br></pre></td></tr></table></figure>
+
+<p>如果是变量的话也可以加 <strong>volatile</strong> 修饰 也不会被优化</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">middle_i2c_delay</span><span class="params">(<span class="type">uint16_t</span> us)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="keyword">volatile</span> <span class="type">uint8_t</span> i;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (i = <span class="number">0</span>; i &lt; (us * <span class="number">10</span>); i++);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>虽然解决了eeprom问题，但是还是OLED卡顿</p>
+<p>最终是把 <strong>for</strong>循环去掉用 <strong>_NOP()</strong> 代替就两个问题都解决：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="type">static</span> <span class="type">void</span> <span class="title">middle_i2c_delay</span><span class="params">(<span class="type">uint16_t</span> us)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// CMSIS 提供的内联函数</span></span><br><span class="line">    __NOP();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+      </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AD%97%E8%8A%82%E5%AF%B9%E9%BD%90"><span class="toc-text">字节对齐</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%B5%AE%E7%82%B9%E5%8D%95%E5%85%83FPU"><span class="toc-text">浮点单元FPU</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E8%8A%AF%E7%89%87%E5%86%85%E9%83%A8Flash%E4%B8%8ESRAM"><span class="toc-text">芯片内部Flash与SRAM</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#keil%E7%9B%B8%E5%85%B3"><span class="toc-text">keil相关</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#not-found-device"><span class="toc-text">not found device</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%94%9F%E6%88%90bin%E6%96%87%E4%BB%B6"><span class="toc-text">生成bin文件</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B1%8F%E8%94%BDkeil%E4%B8%80%E4%BA%9B%E8%AD%A6%E5%91%8A"><span class="toc-text">屏蔽keil一些警告</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#keil-%E5%90%88%E5%B9%B6%E4%B8%8B%E8%BD%BD"><span class="toc-text">keil 合并下载</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#vscode-Cmake-cubeMX-openOCD%E5%BC%80%E5%8F%91"><span class="toc-text">vscode+Cmake+cubeMX+openOCD开发</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E8%B0%83%E8%AF%95"><span class="toc-text">调试</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BD%BF%E7%94%A8%E8%BF%87%E7%A8%8B%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98"><span class="toc-text">使用过程遇到的问题</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#MakeFile%E4%B8%8D%E5%90%8C%E8%AE%BE%E7%BD%AE%E7%9A%84%E7%94%9F%E6%88%90%E6%96%87%E4%BB%B6%E5%A4%A7%E5%B0%8F%E5%8C%BA%E5%88%AB"><span class="toc-text">MakeFile不同设置的生成文件大小区别</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#RTT%E8%B0%83%E8%AF%95"><span class="toc-text">RTT调试</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BC%98%E5%8C%96%E5%AF%BC%E8%87%B4eeprom%E4%B8%8D%E6%AD%A3%E5%B8%B8"><span class="toc-text">优化导致eeprom不正常</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+        <!-- 添加安全检查：确保 social 存在且是数组 否则为空报错 -->
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        博客苟活342天了
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2022026282号-1</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        Theme by Oranges | Powered by Hexo
+        
+    </div>
+  
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/backtotop.js"></script>
+    
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/colorscheme.js"></script>
+    
+
+
+
+
+        
+
+      </div>
+    </div>
+  
+        <style>
+            [bg-lazy] {
+                background-image: none !important;
+                background-color: #eee !important;
+            }
+        </style>
+        <script>
+            window.imageLazyLoadSetting = {
+                isSPA: false,
+                preloadRatio: 1,
+                processImages: null,
+            };
+        </script><script>window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z\d\-\.\+]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(t.test(e.href)||r.test(e.href))&&(e.href=a.dataset.original)})});</script><script>(r=>{r.imageLazyLoadSetting.processImages=t;var a=r.imageLazyLoadSetting.isSPA,o=r.imageLazyLoadSetting.preloadRatio||1,d=i();function i(){var t=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")),e=Array.prototype.slice.call(document.querySelectorAll("[bg-lazy]"));return t.concat(e)}function t(t){(a||t)&&(d=i());for(var e,n=0;n<d.length;n++)0<=(e=(e=d[n]).getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(r.innerHeight*o||document.documentElement.clientHeight*o)&&(()=>{var t,e,a,o,i=d[n];e=function(){d=d.filter(function(t){return i!==t}),r.imageLazyLoadSetting.onImageLoaded&&r.imageLazyLoadSetting.onImageLoaded(i)},(t=i).dataset.loaded||(t.hasAttribute("bg-lazy")?(t.removeAttribute("bg-lazy"),e&&e()):(a=new Image,o=t.getAttribute("data-original"),a.onload=function(){t.src=o,t.removeAttribute("data-original"),t.setAttribute("data-loaded",!0),e&&e()},a.onerror=function(){t.removeAttribute("data-original"),t.setAttribute("data-loaded",!1),t.src=o},t.src!==o&&(a.src=o)))})()}function e(){clearTimeout(t.tId),t.tId=setTimeout(t,500)}t(),document.addEventListener("scroll",e),r.addEventListener("resize",e),r.addEventListener("orientationchange",e)})(this);</script></body>
+</html>

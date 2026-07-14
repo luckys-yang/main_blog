@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="烊烊" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="嵌入式 学习" />
+  
+  
+  
+  <title>
+    
+      使用技巧 
+      
+      
+      |
+    
+     烊烊
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/css/my_woff2.css" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+   
+
+  
+
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+
+
+  <!-- phone live -->
+<script>
+// 当前正在播放的 live photo 相关信息
+let currentPlaying = null;
+document.querySelectorAll('.live-photo .icon img').forEach(img => {
+    img.addEventListener('click', function (e) {
+        // 阻止浏览器默认的图片预览行为
+        e.preventDefault();
+        // 这里可以保留你自己的点击逻辑，比如播放视频
+        console.log('触发自定义业务逻辑');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('.live-photo').forEach(livePhoto => {
+		const container = livePhoto.querySelector('.container');
+		const icon = livePhoto.querySelector('.icon, .icon_1'); // 这里因为添加了icon_1样式所以这里也需要增加一个
+		const video = container.querySelector('video');
+		const image = container.querySelector('img');
+		const warning = livePhoto.querySelector('.warning');
+		// TODO 优化：等图片可用的时候再把视频显示出来，测试出现
+		// 过视频比图片先加载完成，导致 flicker。
+		// 尽可能修复 Safari 无法播放的问题
+		// if (/WebKit/.test(navigator.userAgent)) {
+		// NOTE: 为了避免预加载，不应该提前 load。
+		// video.load();
+		// }
+		// fix: 鼠标进入 → 开始加载 → 鼠标离开（加载成功前） → 加载失败。
+		let within = false;
+        // 停留时间控制变量
+        let playTimer = null;
+        let isPlaying = false;
+        let touchStartTime = 0;
+
+        // 停止上一张的播放 清除状态
+        const stopCurrentPlaying = () => {
+            if (currentPlaying && currentPlaying.video) {
+                currentPlaying.video.pause();
+                // currentPlaying.icon.classList.remove('rotate');
+                currentPlaying.livePhoto.classList.remove('zoom');
+                currentPlaying.warning.classList.remove('show');
+                currentPlaying.isPlaying = false;
+                currentPlaying.within = false;
+            }
+        };
+
+		const start = async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+
+            // ⛔ 先停止之前正在播放的 live photo
+            if (!(currentPlaying && currentPlaying.video === video)) {
+                stopCurrentPlaying();
+            }
+
+			within = true;
+            isPlaying = true;   
+			// 添加旋转类
+			// icon.classList.add('rotate');
+			try {
+				video.currentTime = 0;
+				await video.play();
+				livePhoto.classList.add('zoom');
+                // 更新当前播放变量
+                currentPlaying = { livePhoto, video, icon, warning, isPlaying, within };
+			}
+			catch(e) {
+				console.log(e);
+				if (within && e instanceof DOMException) {
+					if (['NotAllowedError','AbortError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面1';
+					} else if (['NotSupportedError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面2';
+					} else {
+						warning.innerText = `其它错误：${e}`;
+					}
+					warning.classList.add('show');
+				}
+			}
+		};
+		const leave = (e) => {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            
+            // 清理状态
+            // icon.classList.remove('rotate');
+            livePhoto.classList.remove('zoom');
+            warning.classList.remove('show');
+            within = false;
+            isPlaying = false;
+            video.pause();
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		};
+        // 鼠标进入 - 开始计时
+        const handleMouseEnter = (e) => {
+            within = true;
+            // 清除之前的定时器
+            if (playTimer) {
+                clearTimeout(playTimer);
+            }
+            
+            // 400ms后自动播放
+            playTimer = setTimeout(() => {
+                if (within) { // 确保还在区域内
+                    start(e);
+                }
+                playTimer = null;
+            }, 400);
+        };
+        // 鼠标离开 - 检查停留时间
+        const handleMouseLeave = (e) => {
+            leave(e);
+        };
+		icon.addEventListener('mouseenter',   handleMouseEnter);
+		icon.addEventListener('mouseleave',   handleMouseLeave);
+		// image.addEventListener('touchstart',  start);
+		// image.addEventListener('touchend',    leave);
+        // 👇 修改手机端触摸触发方式
+        image.addEventListener('touchstart', function (e) {
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        image.addEventListener('touchend', function (e) {
+            if (Date.now() - touchStartTime < 200) { // 点击播放
+                start(e);
+            }
+            // leave(e);
+        });
+		image.addEventListener('touchcancel', leave);
+		video.addEventListener('ended', () => {
+			livePhoto.classList.remove('zoom');
+            // icon.classList.remove('rotate');
+            isPlaying = false;
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		});
+	});
+});
+</script>
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img no-lazy src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/avatar.webp" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">烊烊のBlog</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">主页</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">归档</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/chat/">
+          <a href="/chat/">闲谈</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于me</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/activeNav.js"></script>
+    
+
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mathjax/3.2.0/es5/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">使用技巧</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2026-07-11 15:52:50
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/%E6%95%99%E7%A8%8B/" title="教程">
+                    <b>#</b> 教程
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <h1 id="git-GUI"><a href="#git-GUI" class="headerlink" title="git GUI"></a>git GUI</h1><h2 id="更新电脑的git版本"><a href="#更新电脑的git版本" class="headerlink" title="更新电脑的git版本"></a>更新电脑的git版本</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 获取最新的版本</span></span><br><span class="line">winget search Git.Git</span><br><span class="line"><span class="comment"># 安装指定版本</span></span><br><span class="line">winget install Git.Git --version 2.54.0</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="Git-Extensions"><a href="#Git-Extensions" class="headerlink" title="Git Extensions"></a>Git Extensions</h2><blockquote>
+<p>需要安装 .Net</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/gitextensions/gitextensions/releases">https://github.com/gitextensions/gitextensions/releases</a></p>
+</blockquote>
+<p>这个就是打包功能</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20260618101933567.png" alt="image-20260618101933567"></p>
+<h1 id="vscode"><a href="#vscode" class="headerlink" title="vscode"></a>vscode</h1><h2 id="关闭vscode自带的源代码管理"><a href="#关闭vscode自带的源代码管理" class="headerlink" title="关闭vscode自带的源代码管理"></a>关闭vscode自带的源代码管理</h2><p>搜索 <code>git.enabled</code> 关闭即可</p>
+<h2 id="代码函数括号内联形参名称"><a href="#代码函数括号内联形参名称" class="headerlink" title="代码函数括号内联形参名称"></a>代码函数括号内联形参名称</h2><p>设置 -&gt; <strong>Parameter Hints</strong> -&gt; <strong>C_Cpp › Inlay Hints › Parameter Names: Enabled</strong></p>
+<h2 id="代码部分高亮颜色更换"><a href="#代码部分高亮颜色更换" class="headerlink" title="代码部分高亮颜色更换"></a>代码部分高亮颜色更换</h2><p>可以在面板输入</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Developer: Inspect Editor Tokens and Scopes</span><br></pre></td></tr></table></figure>
+
+<p>然后点击比如结构体函数就会显示</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20250831202054135.png" alt="image-20250831202054135"></p>
+<h2 id="Copilot禁用"><a href="#Copilot禁用" class="headerlink" title="Copilot禁用"></a>Copilot禁用</h2><p>全部不勾选</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20250819105742303.png" alt="image-20250819105742303"></p>
+<p>还有烦人的左侧星星</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;github.copilot.editor.enableCodeActions&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br></pre></td></tr></table></figure>
+
+<p>安装扩展：Settings Cycler</p>
+<p>在 setting.json 里面添加</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// setting cycle扩展</span></span><br><span class="line"><span class="attr">&quot;settings.cycle&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;copilotHint&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;overrideWorkspaceSettings&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;values&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">            <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;github.copilot.enable&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">                    <span class="attr">&quot;*&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span></span><br><span class="line">                <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="punctuation">&#123;</span></span><br><span class="line">                <span class="attr">&quot;github.copilot.enable&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">                    <span class="attr">&quot;*&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span></span><br><span class="line">                <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="punctuation">&#125;</span></span><br><span class="line">        <span class="punctuation">]</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span><span class="punctuation">,</span></span><br></pre></td></tr></table></figure>
+
+<p>然后快捷键添加即可：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20250819110735979.png" alt="image-20250819110735979"></p>
+<h2 id="括号对颜色失效"><a href="#括号对颜色失效" class="headerlink" title="括号对颜色失效"></a>括号对颜色失效</h2><p><strong>ctrl+shift+p</strong> 打开搜索栏输入 <strong>setting.json</strong></p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20250819105053477.png" alt="image-20250819105053477"></p>
+<p>在里面屏蔽下面这个选项即可</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// &quot;editor.language.brackets&quot;: [</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// ],</span></span><br></pre></td></tr></table></figure>
+
+<p>如果一个注释无效，再追加一个注释配置</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//  editor.language.colorizedBracketPairs</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="window-与-iPhone-无线共享文件夹"><a href="#window-与-iPhone-无线共享文件夹" class="headerlink" title="window 与 iPhone 无线共享文件夹"></a>window 与 iPhone 无线共享文件夹</h1><blockquote>
+<p>参考文章</p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/huxyc/article/details/124750618">https://blog.csdn.net/huxyc/article/details/124750618</a></p>
+<p>如果出现第一次正常后面连接就提示 <strong>socket未连接</strong> 可以尝试打开这个:</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20250810004517610.png" alt="image-20250810004517610"></p>
+</blockquote>
+<h1 id="Git"><a href="#Git" class="headerlink" title="Git"></a>Git</h1><h2 id="分支管理"><a href="#分支管理" class="headerlink" title="分支管理"></a>分支管理</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">第 1 步：确认当前状态是干净的</span><br><span class="line">在创建新分支前，先确保你当前的代码都保存好了。</span><br><span class="line">git status</span><br><span class="line">第 2 步：创建并切换到属于客户 B 的新分支</span><br><span class="line">我们将这个新分支命名为 client-b</span><br><span class="line">git checkout -b client-b</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">注意事项：</span><br><span class="line">切分支前，一定要 Commit（提交）：</span><br><span class="line">如果你在 master 分支写了一半代码，没有 commit 就强行 git checkout client-b，你写了一半的代码会被“带过去”污染目标分支，甚至 Git 会直接报错阻止你切换。养成好习惯：切换分支前，先 git status 确认当前是干净的</span><br><span class="line"></span><br><span class="line">git checkout -b 命令是基于你当前所在的分支来创建新分支的。如果你想基于最初的状态创建客户 C，一定要先切回 master，然后再创建，否则你可能会不小心把客户 B 的修改带给客户 C</span><br><span class="line"></span><br><span class="line">比如你发现了一个不仅客户 A 有，客户 B 也有的 Bug</span><br><span class="line">正确做法： 切换到主干 git checkout master -&gt; 修复 Bug -&gt; 提交 Commit -&gt; 切换到客户 B git checkout client-b -&gt; 执行合并命令 git merge master。这样，客户 B 既没有按键音，又拥有了修复好 Bug 的代码</span><br></pre></td></tr></table></figure>
+
+
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git cherry-pick 6b3b44c // 复制某次提交到当前分支覆盖直接</span><br><span class="line">git branch // 查看当前分支处于</span><br><span class="line">git reset --hard HEAD~1 // 取消最近的一次提交</span><br></pre></td></tr></table></figure>
+
+<p>切换分支时如果更改了但是没有提交可以先暂存，这样子也不会影响另一个分支：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20260711153703406.png" alt="image-20260711153703406"></p>
+<p>然后切换回来后需要选择上一次的暂存：</p>
+<p><strong>弹出暂存</strong></p>
+<ul>
+<li><strong>作用：</strong> 把刚才藏起来的代码重新释放到你现在的文件夹里，并且<strong>自动把这条 <code>stash@&#123;0&#125;</code> 记录删掉</strong>。</li>
+<li><strong>适用场景：</strong> 文件拿出来继续用，顺手把用来打包的“空盒子”扔了，保持界面清爽。</li>
+</ul>
+<p><strong>备用选择：接受暂存</strong>（有的版本叫“应用暂存”）</p>
+<ul>
+<li><strong>作用：</strong> 同样把代码释放到现在的文件夹里，但是<strong>会保留这条 <code>stash@&#123;0&#125;</code> 记录</strong>不删。</li>
+<li><strong>适用场景：</strong> 如果你觉得这堆代码非常重要，怕一会又弄乱了，可以留着这个“备份包”以防万一。</li>
+</ul>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/08/09/%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/image-20260711155220386.png" alt="image-20260711155220386"></p>
+<h2 id="github下载仓库单个文件夹"><a href="#github下载仓库单个文件夹" class="headerlink" title="github下载仓库单个文件夹"></a>github下载仓库单个文件夹</h2><p><a target="_blank" rel="noopener" href="https://minhaskamal.github.io/DownGit/#/home">DownGit</a></p>
+<h2 id="搜索工程的某后缀文件命令"><a href="#搜索工程的某后缀文件命令" class="headerlink" title="搜索工程的某后缀文件命令"></a>搜索工程的某后缀文件命令</h2><p>比如搜索 <strong>elf</strong>后缀文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">find . -<span class="built_in">type</span> f -name <span class="string">&quot;*.elf&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="常用操作"><a href="#常用操作" class="headerlink" title="常用操作"></a>常用操作</h2><p>把文件从 <strong>暂存区</strong> 移回到 <strong>工作区</strong>（改动还在，不会丢失）</p>
+<p>git add . 了但是还没commit的话如果想撤销可以：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git reset</span><br></pre></td></tr></table></figure>
+
+<h2 id="gitattributes文件"><a href="#gitattributes文件" class="headerlink" title=".gitattributes文件"></a>.gitattributes文件</h2><p>文件中的一行定义一个路径的若干个属性，主要用于定义每种文件的属性</p>
+<p>语法：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">设置text</span><br><span class="line">不设置-text</span><br><span class="line">设置值text=string</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 默认所有文本文件使用 LF</span></span><br><span class="line">* text eol=lf</span><br><span class="line"></span><br><span class="line"><span class="comment"># C / C++ 源码文件</span></span><br><span class="line">*.c      text eol=lf</span><br><span class="line">*.h      text eol=lf</span><br><span class="line">*.cpp    text eol=lf</span><br><span class="line">*.hpp    text eol=lf</span><br><span class="line"></span><br><span class="line"><span class="comment"># 脚本文件</span></span><br><span class="line">*.sh     text eol=lf</span><br><span class="line">*.py     text eol=lf</span><br><span class="line">*.bat    text eol=crlf   <span class="comment"># Windows 批处理保留 CRLF</span></span><br><span class="line">*.ps1    text eol=crlf   <span class="comment"># PowerShell 脚本保留 CRLF</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置文件 / JSON / Markdown</span></span><br><span class="line">*.json   text eol=lf</span><br><span class="line">*.md     text eol=lf</span><br><span class="line">*.txt    text eol=lf</span><br><span class="line">*.cfg    text eol=lf</span><br><span class="line">*.properties text eol=lf</span><br><span class="line"></span><br><span class="line"><span class="comment"># 二进制文件（不做换行符转换）</span></span><br><span class="line">*.png    binary</span><br><span class="line">*.jpg    binary</span><br><span class="line">*.gif    binary</span><br><span class="line">*.bin    binary</span><br><span class="line">*.elf    binary</span><br><span class="line">*.hex    binary</span><br></pre></td></tr></table></figure>
+
+<p>更改了后需要：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 清除 Git 的缓存（不删文件）</span></span><br><span class="line">git <span class="built_in">rm</span> --cached -r .</span><br><span class="line"><span class="comment"># 重新让 Git 按照 .gitattributes 规则跟踪文件</span></span><br><span class="line">git add --renormalize .</span><br></pre></td></tr></table></figure>
+
+<p>项目的 <strong>setting.json</strong>需要增加：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// LF结尾</span></span><br><span class="line"><span class="attr">&quot;files.eol&quot;</span><span class="punctuation">:</span> <span class="string">&quot;\n&quot;</span><span class="punctuation">,</span></span><br><span class="line"><span class="attr">&quot;files.autoGuessEncoding&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">true</span></span><span class="punctuation">,</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>修改了 <code>.gitignore</code> 文件后：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">git rm -r --cached .</span><br><span class="line">git add .</span><br><span class="line">git commit -m <span class="string">&quot;Fix: apply updated .gitignore&quot;</span></span><br></pre></td></tr></table></figure>
+
+</blockquote>
+
+      </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#git-GUI"><span class="toc-text">git GUI</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9B%B4%E6%96%B0%E7%94%B5%E8%84%91%E7%9A%84git%E7%89%88%E6%9C%AC"><span class="toc-text">更新电脑的git版本</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Git-Extensions"><span class="toc-text">Git Extensions</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#vscode"><span class="toc-text">vscode</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%85%B3%E9%97%ADvscode%E8%87%AA%E5%B8%A6%E7%9A%84%E6%BA%90%E4%BB%A3%E7%A0%81%E7%AE%A1%E7%90%86"><span class="toc-text">关闭vscode自带的源代码管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E5%87%BD%E6%95%B0%E6%8B%AC%E5%8F%B7%E5%86%85%E8%81%94%E5%BD%A2%E5%8F%82%E5%90%8D%E7%A7%B0"><span class="toc-text">代码函数括号内联形参名称</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%BB%A3%E7%A0%81%E9%83%A8%E5%88%86%E9%AB%98%E4%BA%AE%E9%A2%9C%E8%89%B2%E6%9B%B4%E6%8D%A2"><span class="toc-text">代码部分高亮颜色更换</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#Copilot%E7%A6%81%E7%94%A8"><span class="toc-text">Copilot禁用</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%8B%AC%E5%8F%B7%E5%AF%B9%E9%A2%9C%E8%89%B2%E5%A4%B1%E6%95%88"><span class="toc-text">括号对颜色失效</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#window-%E4%B8%8E-iPhone-%E6%97%A0%E7%BA%BF%E5%85%B1%E4%BA%AB%E6%96%87%E4%BB%B6%E5%A4%B9"><span class="toc-text">window 与 iPhone 无线共享文件夹</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Git"><span class="toc-text">Git</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E6%94%AF%E7%AE%A1%E7%90%86"><span class="toc-text">分支管理</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#github%E4%B8%8B%E8%BD%BD%E4%BB%93%E5%BA%93%E5%8D%95%E4%B8%AA%E6%96%87%E4%BB%B6%E5%A4%B9"><span class="toc-text">github下载仓库单个文件夹</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%90%9C%E7%B4%A2%E5%B7%A5%E7%A8%8B%E7%9A%84%E6%9F%90%E5%90%8E%E7%BC%80%E6%96%87%E4%BB%B6%E5%91%BD%E4%BB%A4"><span class="toc-text">搜索工程的某后缀文件命令</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B8%B8%E7%94%A8%E6%93%8D%E4%BD%9C"><span class="toc-text">常用操作</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#gitattributes%E6%96%87%E4%BB%B6"><span class="toc-text">.gitattributes文件</span></a></li></ol></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+        <!-- 添加安全检查：确保 social 存在且是数组 否则为空报错 -->
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        博客苟活342天了
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2022026282号-1</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        Theme by Oranges | Powered by Hexo
+        
+    </div>
+  
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/backtotop.js"></script>
+    
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/colorscheme.js"></script>
+    
+
+
+
+
+        
+
+      </div>
+    </div>
+  
+        <style>
+            [bg-lazy] {
+                background-image: none !important;
+                background-color: #eee !important;
+            }
+        </style>
+        <script>
+            window.imageLazyLoadSetting = {
+                isSPA: false,
+                preloadRatio: 1,
+                processImages: null,
+            };
+        </script><script>window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z\d\-\.\+]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(t.test(e.href)||r.test(e.href))&&(e.href=a.dataset.original)})});</script><script>(r=>{r.imageLazyLoadSetting.processImages=t;var a=r.imageLazyLoadSetting.isSPA,o=r.imageLazyLoadSetting.preloadRatio||1,d=i();function i(){var t=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")),e=Array.prototype.slice.call(document.querySelectorAll("[bg-lazy]"));return t.concat(e)}function t(t){(a||t)&&(d=i());for(var e,n=0;n<d.length;n++)0<=(e=(e=d[n]).getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(r.innerHeight*o||document.documentElement.clientHeight*o)&&(()=>{var t,e,a,o,i=d[n];e=function(){d=d.filter(function(t){return i!==t}),r.imageLazyLoadSetting.onImageLoaded&&r.imageLazyLoadSetting.onImageLoaded(i)},(t=i).dataset.loaded||(t.hasAttribute("bg-lazy")?(t.removeAttribute("bg-lazy"),e&&e()):(a=new Image,o=t.getAttribute("data-original"),a.onload=function(){t.src=o,t.removeAttribute("data-original"),t.setAttribute("data-loaded",!0),e&&e()},a.onerror=function(){t.removeAttribute("data-original"),t.setAttribute("data-loaded",!1),t.src=o},t.src!==o&&(a.src=o)))})()}function e(){clearTimeout(t.tId),t.tId=setTimeout(t,500)}t(),document.addEventListener("scroll",e),r.addEventListener("resize",e),r.addEventListener("orientationchange",e)})(this);</script></body>
+</html>

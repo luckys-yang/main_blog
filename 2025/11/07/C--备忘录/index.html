@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN" color-mode="light">
+
+  <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="author" content="烊烊" />
+  <!-- Open Graph Description 简短摘要-->
+  
+  <!-- 用于搜索引擎的文章摘要 -->
+  
+  <meta name="description" content="嵌入式 学习" />
+  
+  
+  
+  <title>
+    
+      C++备忘录 
+      
+      
+      |
+    
+     烊烊
+  </title>
+
+  
+    <link rel="apple-touch-icon" href="/images/favicon.png">
+    <link rel="icon" href="/images/favicon.png">
+  
+
+  <!-- Raleway-Font -->
+  <link href="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/css/my_woff2.css" rel="stylesheet">
+
+  <!-- hexo site css -->
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="//at.alicdn.com/t/font_1886449_67xjft27j1l.css" />
+  <!-- 代码块风格 -->
+  
+    
+<link rel="stylesheet" href="/css/figcaption/mac-block.css">
+
+  
+
+  <!-- jquery3.3.1 -->
+  
+    <script defer type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/jquery.min.js"></script>
+  
+
+  <!-- fancybox -->
+   
+
+  
+
+  
+
+  <script>
+    var html = document.documentElement
+    const colorMode = localStorage.getItem('color-mode')
+    if (colorMode) {
+      document.documentElement.setAttribute('color-mode', colorMode)
+    }
+  </script>
+
+
+  <!-- phone live -->
+<script>
+// 当前正在播放的 live photo 相关信息
+let currentPlaying = null;
+document.querySelectorAll('.live-photo .icon img').forEach(img => {
+    img.addEventListener('click', function (e) {
+        // 阻止浏览器默认的图片预览行为
+        e.preventDefault();
+        // 这里可以保留你自己的点击逻辑，比如播放视频
+        console.log('触发自定义业务逻辑');
+    });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+	document.querySelectorAll('.live-photo').forEach(livePhoto => {
+		const container = livePhoto.querySelector('.container');
+		const icon = livePhoto.querySelector('.icon, .icon_1'); // 这里因为添加了icon_1样式所以这里也需要增加一个
+		const video = container.querySelector('video');
+		const image = container.querySelector('img');
+		const warning = livePhoto.querySelector('.warning');
+		// TODO 优化：等图片可用的时候再把视频显示出来，测试出现
+		// 过视频比图片先加载完成，导致 flicker。
+		// 尽可能修复 Safari 无法播放的问题
+		// if (/WebKit/.test(navigator.userAgent)) {
+		// NOTE: 为了避免预加载，不应该提前 load。
+		// video.load();
+		// }
+		// fix: 鼠标进入 → 开始加载 → 鼠标离开（加载成功前） → 加载失败。
+		let within = false;
+        // 停留时间控制变量
+        let playTimer = null;
+        let isPlaying = false;
+        let touchStartTime = 0;
+
+        // 停止上一张的播放 清除状态
+        const stopCurrentPlaying = () => {
+            if (currentPlaying && currentPlaying.video) {
+                currentPlaying.video.pause();
+                // currentPlaying.icon.classList.remove('rotate');
+                currentPlaying.livePhoto.classList.remove('zoom');
+                currentPlaying.warning.classList.remove('show');
+                currentPlaying.isPlaying = false;
+                currentPlaying.within = false;
+            }
+        };
+
+		const start = async (e) => {
+			e.stopPropagation();
+			e.preventDefault();
+
+            // ⛔ 先停止之前正在播放的 live photo
+            if (!(currentPlaying && currentPlaying.video === video)) {
+                stopCurrentPlaying();
+            }
+
+			within = true;
+            isPlaying = true;   
+			// 添加旋转类
+			// icon.classList.add('rotate');
+			try {
+				video.currentTime = 0;
+				await video.play();
+				livePhoto.classList.add('zoom');
+                // 更新当前播放变量
+                currentPlaying = { livePhoto, video, icon, warning, isPlaying, within };
+			}
+			catch(e) {
+				console.log(e);
+				if (within && e instanceof DOMException) {
+					if (['NotAllowedError','AbortError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面1';
+					} else if (['NotSupportedError'].includes(e.name)) {
+						warning.innerText = '无法播放实况照片 请刷新页面2';
+					} else {
+						warning.innerText = `其它错误：${e}`;
+					}
+					warning.classList.add('show');
+				}
+			}
+		};
+		const leave = (e) => {
+            if (playTimer) {
+                clearTimeout(playTimer);
+                playTimer = null;
+            }
+            
+            // 清理状态
+            // icon.classList.remove('rotate');
+            livePhoto.classList.remove('zoom');
+            warning.classList.remove('show');
+            within = false;
+            isPlaying = false;
+            video.pause();
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		};
+        // 鼠标进入 - 开始计时
+        const handleMouseEnter = (e) => {
+            within = true;
+            // 清除之前的定时器
+            if (playTimer) {
+                clearTimeout(playTimer);
+            }
+            
+            // 400ms后自动播放
+            playTimer = setTimeout(() => {
+                if (within) { // 确保还在区域内
+                    start(e);
+                }
+                playTimer = null;
+            }, 400);
+        };
+        // 鼠标离开 - 检查停留时间
+        const handleMouseLeave = (e) => {
+            leave(e);
+        };
+		icon.addEventListener('mouseenter',   handleMouseEnter);
+		icon.addEventListener('mouseleave',   handleMouseLeave);
+		// image.addEventListener('touchstart',  start);
+		// image.addEventListener('touchend',    leave);
+        // 👇 修改手机端触摸触发方式
+        image.addEventListener('touchstart', function (e) {
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        image.addEventListener('touchend', function (e) {
+            if (Date.now() - touchStartTime < 200) { // 点击播放
+                start(e);
+            }
+            // leave(e);
+        });
+		image.addEventListener('touchcancel', leave);
+		video.addEventListener('ended', () => {
+			livePhoto.classList.remove('zoom');
+            // icon.classList.remove('rotate');
+            isPlaying = false;
+            if (currentPlaying && currentPlaying.video === video) {
+                currentPlaying = null;
+            }
+		});
+	});
+});
+</script>
+<meta name="generator" content="Hexo 7.3.0"></head>
+
+
+
+
+  <body>
+    <div id="app">
+      <div class="header">
+  <div class="avatar">
+    <a href="/">
+      <!-- 头像取消懒加载，添加no-lazy -->
+      
+        <img no-lazy src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/avatar.webp" alt="">
+      
+    </a>
+    <div class="nickname"><a href="/">烊烊のBlog</a></div>
+  </div>
+  <div class="navbar">
+    <ul>
+      
+        <li class="nav-item" data-path="/">
+          <a href="/">主页</a>
+        </li>
+      
+        <li class="nav-item" data-path="/archives/">
+          <a href="/archives/">归档</a>
+        </li>
+      
+        <li class="nav-item" data-path="/categories/">
+          <a href="/categories/">分类</a>
+        </li>
+      
+        <li class="nav-item" data-path="/chat/">
+          <a href="/chat/">闲谈</a>
+        </li>
+      
+        <li class="nav-item" data-path="/about/">
+          <a href="/about/">关于me</a>
+        </li>
+      
+    </ul>
+  </div>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/activeNav.js"></script>
+    
+
+
+
+
+      <div class="flex-container">
+        <!-- 文章详情页，展示文章具体内容，url形式：https://yoursite/文章标题/ -->
+<!-- 同时为「标签tag」，「朋友friend」，「分类categories」，「关于about」页面的承载页面，具体展示取决于page.type -->
+
+
+  <!-- LaTex Display -->
+
+  
+    <script async type="text/javascript" src="https://lf26-cdn-tos.bytecdntp.com/cdn/expire-1-M/mathjax/3.2.0/es5/tex-chtml.js"></script>
+  
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    }
+  </script>
+
+
+
+
+
+  <!-- clipboard -->
+
+  
+    <script async type="text/javascript" src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/clipboard.min.js"></script>
+  
+  
+<script src="/js/codeCopy.js"></script>
+
+
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+  <!-- 文章内容页 url形式：https://yoursite/文章标题/ -->
+  <div class="container post-details" id="post-details">
+    <div class="post-content">
+      <div class="post-title">C++备忘录</div>
+      <div class="post-attach">
+        <span class="post-pubtime">
+          <i class="iconfont icon-updatetime mr-10" title="更新时间"></i>
+          2025-11-08 15:53:08
+        </span>
+        
+              <span class="post-categories">
+                <i class="iconfont icon-bookmark" title="分类"></i>
+                
+                <span class="span--category">
+                  <a href="/categories/C/" title="C++">
+                    <b>#</b> C++
+                  </a>
+                </span>
+                
+              </span>
+          
+      </div>
+      <div class="markdown-body">
+        <h2 id="C-语法"><a href="#C-语法" class="headerlink" title="C++语法"></a>C++语法</h2><blockquote>
+<p>构造函数几种写法：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 初始化列表</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Time</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">	<span class="type">int</span> Hour;</span><br><span class="line">	<span class="type">int</span> Minute;</span><br><span class="line">	<span class="type">int</span> Second;</span><br><span class="line"></span><br><span class="line">	<span class="built_in">Time</span>(<span class="type">int</span> tmphour, <span class="type">int</span> tmpmin, <span class="type">int</span> tmpsec) :<span class="built_in">Hour</span>(tmphour), <span class="built_in">Minute</span>(tmpmin), <span class="built_in">Second</span>(tmpsec)&#123;&#125;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 正常</span></span><br><span class="line"><span class="comment">// .h</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">Time</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">	<span class="type">int</span> Hour;</span><br><span class="line">	<span class="type">int</span> Minute;</span><br><span class="line">	<span class="type">int</span> Second;</span><br><span class="line"></span><br><span class="line">	<span class="built_in">Time</span>(<span class="type">int</span> tmphour, <span class="type">int</span> tmpmin, <span class="type">int</span> tmpsec);</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// .cpp</span></span><br><span class="line">Time::<span class="built_in">Time</span>(<span class="type">int</span> tmphour, <span class="type">int</span> tmpmin, <span class="type">int</span> tmpsec)</span><br><span class="line">&#123;</span><br><span class="line">    Hour = tmphour;</span><br><span class="line">    Minute = tmpmin;</span><br><span class="line">    Second = tmpsec;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+
+</blockquote>
+<blockquote>
+<p>派生类包含基类的所有成员，而且还包括自已特有的成员，派生类和派生类对象访问基类中的成员就像访问自已的成员一样，可以直接使用，不需加任何操作符，但派生类仍然<strong>无法访问</strong>基类中的<strong>私有成员</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">class</span> <span class="title class_">A</span> : <span class="keyword">public</span> B；表示派生类Ａ从基类Ｂ继承而来</span><br></pre></td></tr></table></figure>
+
+<p>在Ｃ++中派生类可以同时从多个基类继承</p>
+</blockquote>
+<blockquote>
+<p><strong>匿名函数(lambda 表达式)</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这段代码有两个 lambda</span></span><br><span class="line">[<span class="keyword">this</span>]                          <span class="comment">// 捕获列表：捕获外部的 this 指针</span></span><br><span class="line">(<span class="type">const</span> std::string&amp; wake_word)  <span class="comment">// 参数列表：接收唤醒词字符串</span></span><br><span class="line">&#123;                               <span class="comment">// 函数体</span></span><br><span class="line"> <span class="built_in">Schedule</span>([<span class="keyword">this</span>, &amp;wake_word]() &#123; ... &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p><strong>virtual</strong> 表示这是一个<strong>虚函数</strong>，支持<strong>多态(运行时根据对象类型调用对应的函数)</strong></p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="title">func</span><span class="params">()</span> </span>= <span class="number">0</span>;	<span class="comment">// 纯虚函数 必须由派生类实现的接口</span></span><br><span class="line"><span class="function"><span class="keyword">virtual</span> <span class="title">func</span><span class="params">()</span></span>;	<span class="comment">// 普通虚函数 提供默认实现，派生类可选覆盖</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p><strong>std::vector</strong> 关键字，C++ 标准库提供的 <strong>动态数组容器</strong>，可以在运行时自动管理内存（申请、释放、扩容）</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 指定容器中元素的类型为 16 位无符号整数</span></span><br><span class="line"><span class="comment">// 构造函数的两个参数(元素数量, 初始值)</span></span><br><span class="line"><span class="function">std::vector&lt;<span class="type">uint16_t</span>&gt; <span class="title">buffer</span><span class="params">(width_, <span class="number">0xFFFF</span>)</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">// -&gt; 等价写法</span></span><br><span class="line">std::vector&lt;<span class="type">uint16_t</span>&gt; buffer;          <span class="comment">// 先声明一个空的 vector</span></span><br><span class="line">buffer.<span class="built_in">resize</span>(width_, <span class="number">0xFFFF</span>);         <span class="comment">// 再把它的大小改为 width_，并把每个元素设为 0xFFFF</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p><strong>override 关键字</strong>  明确地表示一个函数是对基类中一个虚函数的重载</p>
+</blockquote>
+<blockquote>
+<p>在设计一个类的时候，如果我们一个构造函数都没有写，那么 <strong>C++</strong> 会帮我们写一个构造函数</p>
+<p>如果我们写的类是一个没有那么复杂的类，我们可以不需要写析构函数。如果一个类只要有这些情况：打开文件、动态分配内存、连接数据库。简单的说：就是只要构造函数里面有了 <code>new</code> 这个关键词，我们就需要自己手动编写析构函数</p>
+<p>它与构造函数唯一的区别就是，前面都加了一个 <code>~</code> 符号</p>
+<p>析构函数都是没有参数的，也就是说：析构函数永远只能写一个</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">	在多态时基类的析构函数需要加virtual 是为了防止内存泄漏</span></span><br><span class="line"><span class="comment">	派生类重写析构函数</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">ILEDDriver</span> &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">virtual</span> ~<span class="built_in">ILEDDriver</span>() = <span class="keyword">default</span>;  <span class="comment">// 基类虚析构</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">GPIOLEDDriver</span> : <span class="keyword">public</span> ILEDDriver &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">    ~<span class="built_in">GPIOLEDDriver</span>() <span class="keyword">override</span>;  <span class="comment">// 明确表示重写基类析构</span></span><br><span class="line">    <span class="comment">// override确保我们正确重写了基类的虚析构函数</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 测试</span></span><br><span class="line"><span class="function"><span class="type">void</span> <span class="title">test</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    ILEDDriver* led = <span class="keyword">new</span> <span class="built_in">GPIOLEDDriver</span>();</span><br><span class="line">    <span class="keyword">delete</span> led;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 输出:</span></span><br><span class="line"><span class="comment">// GPIOLEDDriver构造</span></span><br><span class="line"><span class="comment">// GPIOLEDDriver析构    ← override确保这个被调用</span></span><br><span class="line"><span class="comment">// ILEDDriver析构       ← virtual确保调用链完整</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p>类型转换：</p>
+<p><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSI0IiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgaWQ9InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAiIGF0dHJpYnV0ZU5hbWU9InIiIGJlZ2luPSIwO3N2Z1NwaW5uZXJzM0RvdHNTY2FsZTEuZW5kLTAuMjVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9ImN1cnJlbnRDb2xvciI+PGFuaW1hdGUgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNnMiIGR1cj0iMC43NXMiIHZhbHVlcz0iMzsuMjszIi8+PC9jaXJjbGU+PGNpcmNsZSBjeD0iMjAiIGN5PSIxMiIgcj0iMyIgZmlsbD0iY3VycmVudENvbG9yIj48YW5pbWF0ZSBpZD0ic3ZnU3Bpbm5lcnMzRG90c1NjYWxlMSIgYXR0cmlidXRlTmFtZT0iciIgYmVnaW49InN2Z1NwaW5uZXJzM0RvdHNTY2FsZTAuZW5kLTAuNDVzIiBkdXI9IjAuNzVzIiB2YWx1ZXM9IjM7LjI7MyIvPjwvY2lyY2xlPjwvc3ZnPg==" data-original="/2025/11/07/C--%E5%A4%87%E5%BF%98%E5%BD%95/image-20251107155250318.png" alt="image-20251107155250318"></p>
+</blockquote>
+<blockquote>
+<p><code>vector</code> 是 C++ 标准库（STL）里的 <strong>动态数组容器</strong></p>
+<p><code>vector</code> 的大小可以在运行时动态增长或缩减，不需要在编译时确定</p>
+<p>可以往 <code>vector</code> 里添加元素（<code>push_back()</code>）、删除元素（<code>erase()</code>）、访问元素（<code>[]</code> 或 <code>.at()</code>）</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">vector&lt;Task&gt; 一个“存放 Task 结构的动态数组”</span><br><span class="line">这是一个泛型模板类型，意思是 vector 里存放的元素类型是 Task（你定义的结构体）</span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p>友元类</p>
+<p>定义友元类的语句格式如下：</p>
+<figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">friend</span> <span class="keyword">class</span> 类名;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 例如，以下语句说明类B是类A的友元类</span></span><br><span class="line"><span class="keyword">class</span> <span class="title class_">A</span></span><br><span class="line">&#123;</span><br><span class="line">    …</span><br><span class="line">    <span class="keyword">public</span>:</span><br><span class="line">    <span class="keyword">friend</span> <span class="keyword">class</span> <span class="title class_">B</span>;</span><br><span class="line">    …</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 经过以上说明后，类B的所有成员函数都是类A的友元函数，能存取类A的私有成员和保护成员</span></span><br></pre></td></tr></table></figure>
+</blockquote>
+
+      </div>
+      
+    </div>
+    
+  <div id="btn-catalog" class="btn-catalog">
+    <i class="iconfont icon-catalog"></i>
+  </div>
+  <div class="post-catalog hidden" id="catalog">
+    <div class="title">目录</div>
+    <div class="catalog-content">
+      
+        <ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#C-%E8%AF%AD%E6%B3%95"><span class="toc-text">C++语法</span></a></li></ol>
+      
+    </div>
+  </div>
+
+  
+<script src="/js/catalog.js"></script>
+
+
+
+
+    
+  </div>
+
+
+        
+<div class="footer">
+  <div class="social">
+    <ul>
+        <!-- 添加安全检查：确保 social 存在且是数组 否则为空报错 -->
+        
+    </ul>
+  </div>
+  
+    
+    <div class="footer-more">
+      
+        博客苟活342天了
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        <a target="_blank" rel="noopener" href="https://beian.miit.gov.cn/#/Integrated/index">粤ICP备2022026282号-1</a>
+        
+    </div>
+  
+    
+    <div class="footer-more">
+      
+        Theme by Oranges | Powered by Hexo
+        
+    </div>
+  
+  
+</div>
+
+      </div>
+
+      <div class="tools-bar">
+        <div class="back-to-top tools-bar-item hidden">
+  <a href="javascript: void(0)">
+    <i class="iconfont icon-chevronup"></i>
+  </a>
+</div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/backtotop.js"></script>
+    
+
+
+
+        
+  <div class="search-icon tools-bar-item" id="search-icon">
+    <a href="javascript: void(0)">
+      <i class="iconfont icon-search"></i>
+    </a>
+  </div>
+
+  <div class="search-overlay hidden">
+    <div class="search-content" tabindex="0">
+      <div class="search-title">
+        <span class="search-icon-input">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-search"></i>
+          </a>
+        </span>
+        
+          <input type="text" class="search-input" id="search-input" placeholder="搜索...">
+        
+        <span class="search-close-icon" id="search-close-icon">
+          <a href="javascript: void(0)">
+            <i class="iconfont icon-close"></i>
+          </a>
+        </span>
+      </div>
+      <div class="search-result" id="search-result"></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    var inputArea = document.querySelector("#search-input")
+    var searchOverlayArea = document.querySelector(".search-overlay")
+
+    inputArea.onclick = function() {
+      getSearchFile()
+      this.onclick = null
+    }
+
+    inputArea.onkeydown = function() {
+      if(event.keyCode == 13)
+        return false
+    }
+
+    function openOrHideSearchContent() {
+      let isHidden = searchOverlayArea.classList.contains('hidden')
+      if (isHidden) {
+        searchOverlayArea.classList.remove('hidden')
+        document.body.classList.add('hidden')
+        // inputArea.focus()
+      } else {
+        searchOverlayArea.classList.add('hidden')
+        document.body.classList.remove('hidden')
+      }
+    }
+
+    function blurSearchContent(e) {
+      if (e.target === searchOverlayArea) {
+        openOrHideSearchContent()
+      }
+    }
+
+    document.querySelector("#search-icon").addEventListener("click", openOrHideSearchContent, false)
+    document.querySelector("#search-close-icon").addEventListener("click", openOrHideSearchContent, false)
+    searchOverlayArea.addEventListener("click", blurSearchContent, false)
+
+    var searchFunc = function (path, search_id, content_id) {
+      'use strict';
+      var $input = document.getElementById(search_id);
+      var $resultContent = document.getElementById(content_id);
+      $resultContent.innerHTML = "<ul><span class='local-search-empty'>首次搜索，正在载入索引文件，请稍后……<span></ul>";
+      $.ajax({
+        // 0x01. load xml file
+        url: path,
+        dataType: "xml",
+        success: function (xmlResponse) {
+          // 0x02. parse xml file
+          var datas = $("entry", xmlResponse).map(function () {
+            return {
+              title: $("title", this).text(),
+              content: $("content", this).text(),
+              url: $("url", this).text()
+            };
+          }).get();
+          $resultContent.innerHTML = "";
+
+          $input.addEventListener('input', function () {
+            // 0x03. parse query to keywords list
+            var str = '<ul class=\"search-result-list\">';
+            var keywords = this.value.trim().toLowerCase().split(/[\s\-]+/);
+            $resultContent.innerHTML = "";
+            if (this.value.trim().length <= 0) {
+              return;
+            }
+            // 0x04. perform local searching
+            datas.forEach(function (data) {
+              var isMatch = true;
+              var content_index = [];
+              if (!data.title || data.title.trim() === '') {
+                data.title = "Untitled";
+              }
+              var orig_data_title = data.title.trim();
+              var data_title = orig_data_title.toLowerCase();
+              var orig_data_content = data.content.trim().replace(/<[^>]+>/g, "");
+              var data_content = orig_data_content.toLowerCase();
+              var data_url = data.url;
+              var index_title = -1;
+              var index_content = -1;
+              var first_occur = -1;
+              // only match artiles with not empty contents
+              if (data_content !== '') {
+                keywords.forEach(function (keyword, i) {
+                  index_title = data_title.indexOf(keyword);
+                  index_content = data_content.indexOf(keyword);
+
+                  if (index_title < 0 && index_content < 0) {
+                    isMatch = false;
+                  } else {
+                    if (index_content < 0) {
+                      index_content = 0;
+                    }
+                    if (i == 0) {
+                      first_occur = index_content;
+                    }
+                    // content_index.push({index_content:index_content, keyword_len:keyword_len});
+                  }
+                });
+              } else {
+                isMatch = false;
+              }
+              // 0x05. show search results
+              if (isMatch) {
+                str += "<li><a href='" + data_url + "' class='search-result-title'>" + orig_data_title + "</a>";
+                var content = orig_data_content;
+                if (first_occur >= 0) {
+                  // cut out 100 characters
+                  var start = first_occur - 20;
+                  var end = first_occur + 80;
+
+                  if (start < 0) {
+                    start = 0;
+                  }
+
+                  if (start == 0) {
+                    end = 100;
+                  }
+
+                  if (end > content.length) {
+                    end = content.length;
+                  }
+
+                  var match_content = content.substr(start, end);
+
+                  // highlight all keywords
+                  keywords.forEach(function (keyword) {
+                    var regS = new RegExp(keyword, "gi");
+                    match_content = match_content.replace(regS, "<span class=\"search-keyword\">" + keyword + "</span>");
+                  });
+
+                  str += "<p class=\"search-result-abstract\">" + match_content + "...</p>"
+                }
+                str += "</li>";
+              }
+            });
+            str += "</ul>";
+            if (str.indexOf('<li>') === -1) {
+              return $resultContent.innerHTML = "<ul><span class='local-search-empty'>没有找到内容，请尝试更换检索词。<span></ul>";
+            }
+            $resultContent.innerHTML = str;
+          });
+        },
+        error: function(xhr, status, error) {
+          $resultContent.innerHTML = ""
+          if (xhr.status === 404) {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>未找到search.xml文件，具体请参考：<a href='https://github.com/zchengsite/hexo-theme-oranges#configuration' target='_black'>configuration</a><span></ul>";
+          } else {
+            $resultContent.innerHTML = "<ul><span class='local-search-empty'>请求失败，尝试重新刷新页面或稍后重试。<span></ul>";
+          }
+        }
+      });
+      $(document).on('click', '#search-close-icon', function() {
+        $('#search-input').val('');
+        $('#search-result').html('');
+      });
+    }
+
+    var getSearchFile = function() {
+        var path = "/search.xml";
+        searchFunc(path, 'search-input', 'search-result');
+    }
+  </script>
+
+
+
+
+        
+  <div class="tools-bar-item theme-icon" id="switch-color-scheme">
+    <a href="javascript: void(0)">
+      <i id="theme-icon" class="iconfont icon-moon"></i>
+    </a>
+  </div>
+
+
+    <!-- 使用CDN版本 -->
+    <script src="https://main-image-1309791158.cos.ap-guangzhou.myqcloud.com/BoKe_TP/js/colorscheme.js"></script>
+    
+
+
+
+
+        
+
+      </div>
+    </div>
+  
+        <style>
+            [bg-lazy] {
+                background-image: none !important;
+                background-color: #eee !important;
+            }
+        </style>
+        <script>
+            window.imageLazyLoadSetting = {
+                isSPA: false,
+                preloadRatio: 1,
+                processImages: null,
+            };
+        </script><script>window.addEventListener("load",function(){var t=/\.(gif|jpg|jpeg|tiff|png)$/i,r=/^data:image\/[a-z\d\-\.\+]+;base64,/;Array.prototype.slice.call(document.querySelectorAll("img[data-original]")).forEach(function(a){var e=a.parentNode;"A"===e.tagName&&(t.test(e.href)||r.test(e.href))&&(e.href=a.dataset.original)})});</script><script>(r=>{r.imageLazyLoadSetting.processImages=t;var a=r.imageLazyLoadSetting.isSPA,o=r.imageLazyLoadSetting.preloadRatio||1,d=i();function i(){var t=Array.prototype.slice.call(document.querySelectorAll("img[data-original]")),e=Array.prototype.slice.call(document.querySelectorAll("[bg-lazy]"));return t.concat(e)}function t(t){(a||t)&&(d=i());for(var e,n=0;n<d.length;n++)0<=(e=(e=d[n]).getBoundingClientRect()).bottom&&0<=e.left&&e.top<=(r.innerHeight*o||document.documentElement.clientHeight*o)&&(()=>{var t,e,a,o,i=d[n];e=function(){d=d.filter(function(t){return i!==t}),r.imageLazyLoadSetting.onImageLoaded&&r.imageLazyLoadSetting.onImageLoaded(i)},(t=i).dataset.loaded||(t.hasAttribute("bg-lazy")?(t.removeAttribute("bg-lazy"),e&&e()):(a=new Image,o=t.getAttribute("data-original"),a.onload=function(){t.src=o,t.removeAttribute("data-original"),t.setAttribute("data-loaded",!0),e&&e()},a.onerror=function(){t.removeAttribute("data-original"),t.setAttribute("data-loaded",!1),t.src=o},t.src!==o&&(a.src=o)))})()}function e(){clearTimeout(t.tId),t.tId=setTimeout(t,500)}t(),document.addEventListener("scroll",e),r.addEventListener("resize",e),r.addEventListener("orientationchange",e)})(this);</script></body>
+</html>
